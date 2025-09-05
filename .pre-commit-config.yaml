@@ -1,0 +1,50 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: check-added-large-files
+
+  - repo: local
+    hooks:
+      - id: prettier
+        name: prettier
+        entry: bash -c 'cd extension && pnpm run format'
+        language: system
+        files: extension/.*\.(ts|js|json|md|yaml|yml|svelte)$
+        pass_filenames: false
+
+      - id: eslint
+        name: eslint
+        entry: bash -c 'cd extension && pnpm run lint'
+        language: system
+        files: extension/.*\.(ts|js|svelte)$
+        pass_filenames: false
+
+      - id: typecheck
+        name: typecheck
+        entry: bash -c 'cd extension && pnpm run check'
+        language: system
+        files: extension/.*\.(ts|svelte)$
+        pass_filenames: false
+
+      - id: cargo-fmt
+        name: cargo fmt
+        entry: cargo fmt
+        language: system
+        files: host/.*\.rs$
+        args: [--manifest-path, host/Cargo.toml]
+        pass_filenames: false
+
+      - id: cargo-clippy
+        name: cargo clippy
+        entry: cargo clippy
+        language: system
+        files: host/.*\.rs$
+        args: [--manifest-path, host/Cargo.toml, --, -D, warnings]
+        pass_filenames: false

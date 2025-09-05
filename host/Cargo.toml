@@ -1,0 +1,38 @@
+[package]
+name = "tapestry-host"
+version = "0.1.0"
+authors = ["John Downey <jdowney@gmail.com>"]
+description = "Leverage Fabric's crowdsourced LLM prompts directly from your browser"
+repository = "https://github.com/jtdowney/tapestry"
+homepage = "https://github.com/jtdowney/tapestry"
+readme = "../README.md"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+anyhow = "1"
+async-trait = "0.1"
+bytes = "1"
+camino = { version = "1", features = ["serde1"] }
+futures-util = { version = "0.3", features = ["sink"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tokio = { version = "1", features = ["full"] }
+tokio-util = { version = "0.7", features = ["codec"] }
+uuid = { version = "1", features = ["serde", "v4"] }
+which = "8"
+
+[dev-dependencies]
+assert_matches = "1"
+camino-tempfile = "1"
+camino-tempfile-ext = "0.3"
+colored = "3"
+crossterm = "0.29"
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = "fat"
+opt-level = 3
+strip = "debuginfo"
