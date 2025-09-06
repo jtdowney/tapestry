@@ -11,7 +11,14 @@ const turndown = new TurndownService({
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   const parsed = InternalRequestSchema.safeParse(message);
   if (parsed.success && parsed.data.type === 'internal.capturePage') {
-    handleCapturePage(parsed.data.rawContent || false).then(sendResponse);
+    handleCapturePage(parsed.data.rawContent || false)
+      .then(sendResponse)
+      .catch((error) => {
+        sendResponse({
+          type: 'internal.processingError',
+          message: `Content extraction failed: ${error}`,
+        });
+      });
     return true;
   }
   return false;
