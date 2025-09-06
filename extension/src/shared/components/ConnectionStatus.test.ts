@@ -14,13 +14,13 @@ describe('ConnectionStatus', () => {
       messageListeners.push(listener);
     });
     chrome.runtime.sendMessage = vi.fn().mockResolvedValue({
-      type: 'internal.connection_status',
+      type: 'internal.connectionStatus',
       status: 'connected',
     });
 
     const { container } = render(ConnectionStatus);
 
-    let connectedMessage = { type: 'internal.connection_status', status: 'connected' };
+    let connectedMessage = { type: 'internal.connectionStatus', status: 'connected' };
     messageListeners.forEach((listener) => listener(connectedMessage));
 
     await waitFor(() => {
@@ -28,7 +28,7 @@ describe('ConnectionStatus', () => {
       expect(successIcon).toBeInTheDocument();
     });
 
-    let disconnectedMessage = { type: 'internal.connection_status', status: 'disconnected' };
+    let disconnectedMessage = { type: 'internal.connectionStatus', status: 'disconnected' };
     messageListeners.forEach((listener) => listener(disconnectedMessage));
 
     await waitFor(() => {
@@ -40,7 +40,7 @@ describe('ConnectionStatus', () => {
       expect(retryButton).toBeInTheDocument();
     });
 
-    connectedMessage = { type: 'internal.connection_status', status: 'connected' };
+    connectedMessage = { type: 'internal.connectionStatus', status: 'connected' };
     messageListeners.forEach((listener) => listener(connectedMessage));
 
     await waitFor(() => {

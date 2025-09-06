@@ -18,7 +18,7 @@ const pendingRequests = new Map<string, (response: InternalResponse) => void>();
 
 export function cleanupPending(reason: string): void {
   for (const [, callback] of pendingRequests.entries()) {
-    callback({ type: 'internal.processing_error', message: reason });
+    callback({ type: 'internal.processingError', message: reason });
   }
   pendingRequests.clear();
 }
@@ -66,7 +66,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   } else {
     console.warn('Received invalid request', parsed.error);
-    sendResponse({ type: 'internal.processing_error', message: 'Invalid request format' });
+    sendResponse({ type: 'internal.processingError', message: 'Invalid request format' });
     return false;
   }
 });
@@ -126,7 +126,7 @@ export async function startNativeHandshake(port: chrome.runtime.Port): Promise<v
 function broadcastConnectionStatus(): void {
   const status = nativeConnection.status === 'connected' ? 'connected' : 'disconnected';
 
-  chrome.runtime.sendMessage({ type: 'internal.connection_status', status }).catch((error) => {
+  chrome.runtime.sendMessage({ type: 'internal.connectionStatus', status }).catch((error) => {
     if (error?.message?.includes('Receiving end does not exist')) {
       console.debug('No listeners for connection status update');
     } else {
@@ -159,7 +159,7 @@ function handleNativeMessage(message: NativeResponse, port: chrome.runtime.Port)
       console.log('Patterns:', message.patterns);
       const respond = pendingRequests.get(message.id);
       if (respond) {
-        respond({ type: 'internal.patterns_list', patterns: message.patterns });
+        respond({ type: 'internal.patternsList', patterns: message.patterns });
         pendingRequests.delete(message.id);
       }
       break;
@@ -167,7 +167,7 @@ function handleNativeMessage(message: NativeResponse, port: chrome.runtime.Port)
     case 'native.contextsList': {
       const respond = pendingRequests.get(message.id);
       if (respond) {
-        respond({ type: 'internal.contexts_list', contexts: message.contexts });
+        respond({ type: 'internal.contextsList', contexts: message.contexts });
         pendingRequests.delete(message.id);
       }
       break;
@@ -177,7 +177,7 @@ function handleNativeMessage(message: NativeResponse, port: chrome.runtime.Port)
         message.content.length > 100 ? `${message.content.slice(0, 100)}...` : message.content;
       console.log('Content received:', truncatedContent);
       chrome.runtime
-        .sendMessage({ type: 'internal.processing_content', content: message.content })
+        .sendMessage({ type: 'internal.processingContent', content: message.content })
         .catch((error) => {
           if (error?.message?.includes('Receiving end does not exist')) {
             console.debug('No listeners for processing content');
@@ -190,7 +190,7 @@ function handleNativeMessage(message: NativeResponse, port: chrome.runtime.Port)
     case 'native.done': {
       console.log('Process done. exitCode:', message.exitCode ?? null);
       chrome.runtime
-        .sendMessage({ type: 'internal.processing_done', exitCode: message.exitCode ?? null })
+        .sendMessage({ type: 'internal.processingDone', exitCode: message.exitCode ?? null })
         .catch((error) => {
           if (error?.message?.includes('Receiving end does not exist')) {
             console.debug('No listeners for processing done');
@@ -204,7 +204,7 @@ function handleNativeMessage(message: NativeResponse, port: chrome.runtime.Port)
     case 'native.error': {
       console.error('Native error:', message.message);
       chrome.runtime
-        .sendMessage({ type: 'internal.processing_error', message: message.message })
+        .sendMessage({ type: 'internal.processingError', message: message.message })
         .catch((error) => {
           if (error?.message?.includes('Receiving end does not exist')) {
             console.debug('No listeners for processing error');
@@ -226,12 +226,12 @@ async function handleMessage(
   console.debug(`[handleMessage] Received ${data.type} message`);
 
   switch (data.type) {
-    case 'internal.connection_status': {
+    case 'internal.connectionStatus': {
       const status = nativeConnection.status === 'connected' ? 'connected' : 'disconnected';
-      sendResponse({ type: 'internal.connection_status', status });
+      sendResponse({ type: 'internal.connectionStatus', status });
       break;
     }
-    case 'internal.reconnect_native': {
+    case 'internal.reconnectNative': {
       console.debug('Reconnecting to native host...');
 
       if (nativeConnection.status === 'connected' || nativeConnection.status === 'connecting') {
@@ -246,14 +246,14 @@ async function handleMessage(
         console.error('Failed to start reconnection:', error);
       });
 
-      sendResponse({ type: 'internal.connection_status', status: 'disconnected' });
+      sendResponse({ type: 'internal.connectionStatus', status: 'disconnected' });
       break;
     }
-    case 'internal.list_patterns': {
+    case 'internal.listPatterns': {
       if (nativeConnection.status !== 'connected') {
         console.debug('Not connected to native host');
         sendResponse({
-          type: 'internal.processing_error',
+          type: 'internal.processingError',
           message: 'Not connected to native host',
         });
         return;
@@ -271,7 +271,7 @@ async function handleMessage(
       if (!result.success) {
         console.warn('Failed to create listPatterns request:', result.error);
         sendResponse({
-          type: 'internal.processing_error',
+          type: 'internal.processingError',
           message: 'Invalid request configuration',
         });
         return;
@@ -284,18 +284,18 @@ async function handleMessage(
       } catch (error) {
         console.error('Failed to send listPatterns request:', error);
         sendResponse({
-          type: 'internal.processing_error',
+          type: 'internal.processingError',
           message: 'Failed to send request to native host',
         });
         return;
       }
       break;
     }
-    case 'internal.list_contexts': {
+    case 'internal.listContexts': {
       if (nativeConnection.status !== 'connected') {
         console.debug('Not connected to native host');
         sendResponse({
-          type: 'internal.processing_error',
+          type: 'internal.processingError',
           message: 'Not connected to native host',
         });
         return;
@@ -313,7 +313,7 @@ async function handleMessage(
       if (!result.success) {
         console.warn('Failed to create listContexts request:', result.error);
         sendResponse({
-          type: 'internal.processing_error',
+          type: 'internal.processingError',
           message: 'Invalid request configuration',
         });
         return;
@@ -326,27 +326,27 @@ async function handleMessage(
       } catch (error) {
         console.error('Failed to send listContexts request:', error);
         sendResponse({
-          type: 'internal.processing_error',
+          type: 'internal.processingError',
           message: 'Failed to send request to native host',
         });
         return;
       }
       break;
     }
-    case 'internal.capture_page': {
+    case 'internal.capturePage': {
       try {
         const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
         const activeTab = tabs[0];
 
         if (!activeTab?.id) {
-          sendResponse({ type: 'internal.processing_error', message: 'No active tab' });
+          sendResponse({ type: 'internal.processingError', message: 'No active tab' });
           return;
         }
 
-        chrome.tabs.sendMessage(activeTab.id, { type: 'internal.capture_page' }, (response) => {
+        chrome.tabs.sendMessage(activeTab.id, { type: 'internal.capturePage' }, (response) => {
           if (chrome.runtime.lastError) {
             sendResponse({
-              type: 'internal.processing_error',
+              type: 'internal.processingError',
               message: 'Content script not available. Please refresh the page.',
             });
           } else {
@@ -355,17 +355,17 @@ async function handleMessage(
         });
       } catch (error) {
         sendResponse({
-          type: 'internal.processing_error',
+          type: 'internal.processingError',
           message: `Failed to capture page: ${error}`,
         });
         return;
       }
       break;
     }
-    case 'internal.process_content': {
+    case 'internal.processContent': {
       if (nativeConnection.status !== 'connected') {
         sendResponse({
-          type: 'internal.processing_error',
+          type: 'internal.processingError',
           message: 'Not connected to native host',
         });
         return;
@@ -392,7 +392,7 @@ async function handleMessage(
       if (!result.success) {
         console.warn('Failed to create processContent request:', result.error);
         sendResponse({
-          type: 'internal.processing_error',
+          type: 'internal.processingError',
           message: 'Invalid request configuration',
         });
         return;
@@ -404,7 +404,7 @@ async function handleMessage(
       } catch (error) {
         console.error('Failed to send processContent request:', error);
         sendResponse({
-          type: 'internal.processing_error',
+          type: 'internal.processingError',
           message: 'Failed to send request to native host',
         });
         return;
@@ -414,7 +414,7 @@ async function handleMessage(
     default: {
       console.warn(`Unknown message type: ${(data as any).type}`);
       sendResponse({
-        type: 'internal.processing_error',
+        type: 'internal.processingError',
         message: 'Unknown message type',
       });
       break;

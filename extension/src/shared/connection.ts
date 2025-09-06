@@ -24,9 +24,9 @@ export async function sendSafely(request: InternalRequest): Promise<InternalResp
 }
 
 export async function getConnectionStatus(): Promise<'connected' | 'disconnected'> {
-  const response = await sendSafely({ type: 'internal.connection_status' });
+  const response = await sendSafely({ type: 'internal.connectionStatus' });
 
-  if (response && response.type === 'internal.connection_status') {
+  if (response && response.type === 'internal.connectionStatus') {
     return response.status;
   }
 
@@ -58,7 +58,7 @@ export function removeConnectionListener(
 }
 
 function handleInternalMessage(message: any): void {
-  if (message && message.type === 'internal.connection_status' && message.status) {
+  if (message && message.type === 'internal.connectionStatus' && message.status) {
     connectionListeners.forEach((listener) => {
       listener(message.status);
     });

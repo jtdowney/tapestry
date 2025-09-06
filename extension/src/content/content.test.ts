@@ -53,7 +53,7 @@ describe('content script', () => {
     mockReadability.parse.mockReturnValue(mockArticle);
     mockTurndown.turndown.mockReturnValue('# Test Content');
 
-    const message = { type: 'internal.capture_page' };
+    const message = { type: 'internal.capturePage' };
 
     const result = messageListener(message, null, mockSendResponse);
 
@@ -61,7 +61,7 @@ describe('content script', () => {
 
     await vi.waitFor(() => {
       expect(mockSendResponse).toHaveBeenCalledWith({
-        type: 'internal.page_content',
+        type: 'internal.pageContent',
         content: '# Test Article\n\n# Test Content',
       });
     });
@@ -70,7 +70,7 @@ describe('content script', () => {
   it('should handle article extraction failure', async () => {
     mockReadability.parse.mockReturnValue(null);
 
-    const message = { type: 'internal.capture_page' };
+    const message = { type: 'internal.capturePage' };
 
     const result = messageListener(message, null, mockSendResponse);
 
@@ -78,7 +78,7 @@ describe('content script', () => {
 
     await vi.waitFor(() => {
       expect(mockSendResponse).toHaveBeenCalledWith({
-        type: 'internal.processing_error',
+        type: 'internal.processingError',
         message: 'Failed to extract readable content from page',
       });
     });
@@ -92,13 +92,13 @@ describe('content script', () => {
     mockReadability.parse.mockReturnValue(mockArticle);
     mockTurndown.turndown.mockReturnValue('Test content');
 
-    const message = { type: 'internal.capture_page' };
+    const message = { type: 'internal.capturePage' };
 
     messageListener(message, null, mockSendResponse);
 
     await vi.waitFor(() => {
       expect(mockSendResponse).toHaveBeenCalledWith({
-        type: 'internal.page_content',
+        type: 'internal.pageContent',
         content: '# Untitled\n\nTest content',
       });
     });
@@ -109,19 +109,19 @@ describe('content script', () => {
       throw new Error('Processing failed');
     });
 
-    const message = { type: 'internal.capture_page' };
+    const message = { type: 'internal.capturePage' };
 
     messageListener(message, null, mockSendResponse);
 
     await vi.waitFor(() => {
       expect(mockSendResponse).toHaveBeenCalledWith({
-        type: 'internal.processing_error',
+        type: 'internal.processingError',
         message: 'Content extraction failed: Error: Processing failed',
       });
     });
   });
 
-  it('should return false for non-internal.capture_page messages', () => {
+  it('should return false for non-internal.capturePage messages', () => {
     const message = { type: 'other_message' };
 
     const result = messageListener(message, null, mockSendResponse);

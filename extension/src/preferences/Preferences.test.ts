@@ -42,14 +42,14 @@ describe('Preferences Component', () => {
     messageListeners = [];
 
     mockSendMessage = createMockSendMessage({
-      type: 'internal.patterns_list',
+      type: 'internal.patternsList',
       patterns: ['pattern1', 'pattern2'],
     });
 
     const { sendSafely, getConnectionStatus, addConnectionListener, removeConnectionListener } =
       await import('$shared/connection');
     vi.mocked(sendSafely).mockResolvedValue({
-      type: 'internal.patterns_list',
+      type: 'internal.patternsList',
       patterns: ['pattern1', 'pattern2'],
     });
     vi.mocked(getConnectionStatus).mockResolvedValue('connected');
@@ -114,14 +114,14 @@ describe('Preferences Component', () => {
     it('should load available patterns on mount', async () => {
       const { sendSafely } = await import('$shared/connection');
       vi.mocked(sendSafely).mockResolvedValue({
-        type: 'internal.patterns_list',
+        type: 'internal.patternsList',
         patterns: ['pattern1', 'pattern2'],
       });
 
       render(Preferences);
 
       await waitFor(() => {
-        expect(sendSafely).toHaveBeenCalledWith({ type: 'internal.list_patterns' });
+        expect(sendSafely).toHaveBeenCalledWith({ type: 'internal.listPatterns' });
       });
     });
   });
@@ -252,7 +252,7 @@ describe('Preferences Component', () => {
     it('should display available patterns with checkboxes', async () => {
       const { sendSafely, getConnectionStatus } = await import('$shared/connection');
       vi.mocked(sendSafely).mockResolvedValue({
-        type: 'internal.patterns_list',
+        type: 'internal.patternsList',
         patterns: ['pattern1', 'pattern2', 'pattern3'],
       });
       vi.mocked(getConnectionStatus).mockResolvedValue('connected');
@@ -292,20 +292,20 @@ describe('Preferences Component', () => {
 
       mockSendMessage = vi.fn().mockImplementation((request, callback) => {
         if (callback) {
-          if (request.type === 'internal.list_patterns') {
+          if (request.type === 'internal.listPatterns') {
             setTimeout(
               () =>
                 callback({
-                  type: 'internal.patterns_list',
+                  type: 'internal.patternsList',
                   patterns: ['pattern1', 'pattern2'],
                 }),
               0
             );
-          } else if (request.type === 'internal.connection_status') {
+          } else if (request.type === 'internal.connectionStatus') {
             setTimeout(
               () =>
                 callback({
-                  type: 'internal.connection_status',
+                  type: 'internal.connectionStatus',
                   status: 'connected',
                 }),
               0
@@ -350,20 +350,20 @@ describe('Preferences Component', () => {
 
       mockSendMessage = vi.fn().mockImplementation((request, callback) => {
         if (callback) {
-          if (request.type === 'internal.list_patterns') {
+          if (request.type === 'internal.listPatterns') {
             setTimeout(
               () =>
                 callback({
-                  type: 'internal.patterns_list',
+                  type: 'internal.patternsList',
                   patterns: ['pattern1', 'pattern2'],
                 }),
               0
             );
-          } else if (request.type === 'internal.connection_status') {
+          } else if (request.type === 'internal.connectionStatus') {
             setTimeout(
               () =>
                 callback({
-                  type: 'internal.connection_status',
+                  type: 'internal.connectionStatus',
                   status: 'connected',
                 }),
               0
@@ -397,7 +397,7 @@ describe('Preferences Component', () => {
     it('should show pattern count when patterns are filtered', async () => {
       const { sendSafely, getConnectionStatus } = await import('$shared/connection');
       vi.mocked(sendSafely).mockResolvedValue({
-        type: 'internal.patterns_list',
+        type: 'internal.patternsList',
         patterns: ['pattern1', 'pattern2', 'pattern3'],
       });
       vi.mocked(getConnectionStatus).mockResolvedValue('connected');
@@ -426,20 +426,20 @@ describe('Preferences Component', () => {
     it('should display connection status', async () => {
       mockSendMessage = vi.fn().mockImplementation((request, callback) => {
         if (callback) {
-          if (request.type === 'internal.connection_status') {
+          if (request.type === 'internal.connectionStatus') {
             setTimeout(
               () =>
                 callback({
-                  type: 'internal.connection_status',
+                  type: 'internal.connectionStatus',
                   status: 'connected',
                 }),
               0
             );
-          } else if (request.type === 'internal.list_patterns') {
+          } else if (request.type === 'internal.listPatterns') {
             setTimeout(
               () =>
                 callback({
-                  type: 'internal.patterns_list',
+                  type: 'internal.patternsList',
                   patterns: ['pattern1', 'pattern2'],
                 }),
               0
@@ -461,7 +461,7 @@ describe('Preferences Component', () => {
       const { container } = render(Preferences);
 
       messageListeners.forEach((listener) =>
-        listener({ type: 'internal.connection_status', status: 'connected' })
+        listener({ type: 'internal.connectionStatus', status: 'connected' })
       );
 
       await waitFor(() => {
@@ -473,18 +473,18 @@ describe('Preferences Component', () => {
     it('should reload patterns when connection is restored', async () => {
       const { sendSafely } = await import('$shared/connection');
       vi.mocked(sendSafely).mockResolvedValue({
-        type: 'internal.patterns_list',
+        type: 'internal.patternsList',
         patterns: ['pattern1', 'pattern2'],
       });
 
       render(Preferences);
 
       messageListeners.forEach((listener) =>
-        listener({ type: 'internal.connection_status', status: 'connected' })
+        listener({ type: 'internal.connectionStatus', status: 'connected' })
       );
 
       await waitFor(() => {
-        expect(sendSafely).toHaveBeenCalledWith({ type: 'internal.list_patterns' });
+        expect(sendSafely).toHaveBeenCalledWith({ type: 'internal.listPatterns' });
       });
     });
   });
@@ -619,7 +619,7 @@ describe('Preferences Component', () => {
       const { sendSafely, getConnectionStatus } = await import('$shared/connection');
 
       vi.mocked(sendSafely).mockResolvedValue({
-        type: 'internal.patterns_list',
+        type: 'internal.patternsList',
         patterns: ['pattern1', 'pattern2', 'pattern3'],
       });
 
@@ -671,20 +671,20 @@ describe('Preferences Component', () => {
 
       mockSendMessage = vi.fn().mockImplementation((request, callback) => {
         if (callback) {
-          if (request.type === 'internal.list_patterns') {
+          if (request.type === 'internal.listPatterns') {
             setTimeout(
               () =>
                 callback({
-                  type: 'internal.patterns_list',
+                  type: 'internal.patternsList',
                   patterns: ['pattern1', 'pattern2'],
                 }),
               0
             );
-          } else if (request.type === 'internal.connection_status') {
+          } else if (request.type === 'internal.connectionStatus') {
             setTimeout(
               () =>
                 callback({
-                  type: 'internal.connection_status',
+                  type: 'internal.connectionStatus',
                   status: 'connected',
                 }),
               0
@@ -746,20 +746,20 @@ describe('Preferences Component', () => {
 
       mockSendMessage = vi.fn().mockImplementation((request, callback) => {
         if (callback) {
-          if (request.type === 'internal.list_patterns') {
+          if (request.type === 'internal.listPatterns') {
             setTimeout(
               () =>
                 callback({
-                  type: 'internal.patterns_list',
+                  type: 'internal.patternsList',
                   patterns: ['pattern1', 'pattern2'],
                 }),
               0
             );
-          } else if (request.type === 'internal.connection_status') {
+          } else if (request.type === 'internal.connectionStatus') {
             setTimeout(
               () =>
                 callback({
-                  type: 'internal.connection_status',
+                  type: 'internal.connectionStatus',
                   status: 'connected',
                 }),
               0
@@ -818,7 +818,7 @@ describe('Preferences Component', () => {
 
       const { sendSafely, getConnectionStatus } = await import('$shared/connection');
       vi.mocked(sendSafely).mockResolvedValue({
-        type: 'internal.patterns_list',
+        type: 'internal.patternsList',
         patterns: ['pattern1', 'pattern2', 'pattern3'],
       });
       vi.mocked(getConnectionStatus).mockResolvedValue('connected');
@@ -862,20 +862,20 @@ describe('Preferences Component', () => {
 
       mockSendMessage = vi.fn().mockImplementation((request, callback) => {
         if (callback) {
-          if (request.type === 'internal.list_patterns') {
+          if (request.type === 'internal.listPatterns') {
             setTimeout(
               () =>
                 callback({
-                  type: 'internal.patterns_list',
+                  type: 'internal.patternsList',
                   patterns: ['pattern1'],
                 }),
               0
             );
-          } else if (request.type === 'internal.connection_status') {
+          } else if (request.type === 'internal.connectionStatus') {
             setTimeout(
               () =>
                 callback({
-                  type: 'internal.connection_status',
+                  type: 'internal.connectionStatus',
                   status: 'connected',
                 }),
               0
@@ -907,20 +907,20 @@ describe('Preferences Component', () => {
     it('should handle invalid pattern list response gracefully', async () => {
       mockSendMessage = vi.fn().mockImplementation((request, callback) => {
         if (callback) {
-          if (request.type === 'internal.list_patterns') {
+          if (request.type === 'internal.listPatterns') {
             setTimeout(
               () =>
                 callback({
-                  type: 'internal.patterns_list',
+                  type: 'internal.patternsList',
                   patterns: null,
                 }),
               0
             );
-          } else if (request.type === 'internal.connection_status') {
+          } else if (request.type === 'internal.connectionStatus') {
             setTimeout(
               () =>
                 callback({
-                  type: 'internal.connection_status',
+                  type: 'internal.connectionStatus',
                   status: 'connected',
                 }),
               0
@@ -1027,7 +1027,7 @@ describe('Preferences Component', () => {
 
       const { sendSafely, getConnectionStatus } = await import('$shared/connection');
       vi.mocked(sendSafely).mockResolvedValue({
-        type: 'internal.patterns_list',
+        type: 'internal.patternsList',
         patterns: largePatternList,
       });
       vi.mocked(getConnectionStatus).mockResolvedValue('connected');
@@ -1074,7 +1074,7 @@ describe('Preferences Component', () => {
 
       const { sendSafely, getConnectionStatus } = await import('$shared/connection');
       vi.mocked(sendSafely).mockResolvedValue({
-        type: 'internal.patterns_list',
+        type: 'internal.patternsList',
         patterns: availablePatterns,
       });
       vi.mocked(getConnectionStatus).mockResolvedValue('connected');
@@ -1093,20 +1093,20 @@ describe('Preferences Component', () => {
     it('should handle empty pattern list response', async () => {
       mockSendMessage = vi.fn().mockImplementation((request, callback) => {
         if (callback) {
-          if (request.type === 'internal.list_patterns') {
+          if (request.type === 'internal.listPatterns') {
             setTimeout(
               () =>
                 callback({
-                  type: 'internal.patterns_list',
+                  type: 'internal.patternsList',
                   patterns: [],
                 }),
               0
             );
-          } else if (request.type === 'internal.connection_status') {
+          } else if (request.type === 'internal.connectionStatus') {
             setTimeout(
               () =>
                 callback({
-                  type: 'internal.connection_status',
+                  type: 'internal.connectionStatus',
                   status: 'connected',
                 }),
               0

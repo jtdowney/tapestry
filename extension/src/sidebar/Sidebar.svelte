@@ -35,13 +35,13 @@
 
       try {
         loadingPatterns = true;
-        const response = await sendSafely({ type: 'internal.list_patterns' });
+        const response = await sendSafely({ type: 'internal.listPatterns' });
         if (!response) {
           console.warn('Unable to load patterns: extension communication failed');
           return;
         }
 
-        if (response.type === 'internal.patterns_list') {
+        if (response.type === 'internal.patternsList') {
           const allPatterns = response.patterns;
           const visiblePatterns = settings.visiblePatterns;
 
@@ -71,11 +71,11 @@
     })();
 
     const handleMessage = (message: any) => {
-      if (message.type === 'internal.processing_content') {
+      if (message.type === 'internal.processingContent') {
         output += message.content;
-      } else if (message.type === 'internal.processing_done') {
+      } else if (message.type === 'internal.processingDone') {
         processing = false;
-      } else if (message.type === 'internal.processing_error') {
+      } else if (message.type === 'internal.processingError') {
         outputError = message.message;
         processing = false;
       }
@@ -167,7 +167,7 @@
       localRenderAsMarkdown = renderAsMarkdown;
 
       const pageResponse = await sendSafely({
-        type: 'internal.capture_page',
+        type: 'internal.capturePage',
         rawContent: sendRawContent,
       });
       if (!pageResponse) {
@@ -176,15 +176,15 @@
         return;
       }
 
-      if (pageResponse.type === 'internal.processing_error') {
+      if (pageResponse.type === 'internal.processingError') {
         outputError = pageResponse.message;
         processing = false;
         return;
       }
 
-      if (pageResponse.type === 'internal.page_content') {
+      if (pageResponse.type === 'internal.pageContent') {
         const processRequest = InternalRequestSchema.parse({
-          type: 'internal.process_content',
+          type: 'internal.processContent',
           content: pageResponse.content,
           pattern: isCustomPattern ? undefined : selectedPattern,
           customPrompt: isCustomPattern ? customPrompt : undefined,

@@ -38,7 +38,7 @@
 
   $effect(() => {
     function handleConnectionUpdate(message: any): void {
-      if (message.type === 'internal.connection_status') {
+      if (message.type === 'internal.connectionStatus') {
         const previousStatus = connectionStatus;
         connectionStatus = message.status;
 
@@ -68,8 +68,8 @@
   async function loadAvailableOptions(): Promise<void> {
     try {
       // Load patterns
-      const patternsResponse = await sendSafely({ type: 'internal.list_patterns' });
-      if (patternsResponse?.type === 'internal.patterns_list') {
+      const patternsResponse = await sendSafely({ type: 'internal.listPatterns' });
+      if (patternsResponse?.type === 'internal.patternsList') {
         availablePatterns = patternsResponse.patterns;
 
         if (settings && settings.visiblePatterns.length === 0 && availablePatterns.length > 0) {
@@ -81,8 +81,8 @@
       }
 
       // Load contexts
-      const contextsResponse = await sendSafely({ type: 'internal.list_contexts' });
-      if (contextsResponse?.type === 'internal.contexts_list') {
+      const contextsResponse = await sendSafely({ type: 'internal.listContexts' });
+      if (contextsResponse?.type === 'internal.contextsList') {
         availableContexts = contextsResponse.contexts;
       }
     } catch (error) {
@@ -103,7 +103,7 @@
 
       if (fabricPathChanged) {
         console.log('Fabric path changed, triggering reconnection');
-        sendSafely({ type: 'internal.reconnect_native' });
+        sendSafely({ type: 'internal.reconnectNative' });
       }
 
       saveStatus = 'saved';

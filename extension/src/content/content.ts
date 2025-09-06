@@ -10,7 +10,7 @@ const turndown = new TurndownService({
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   const parsed = InternalRequestSchema.safeParse(message);
-  if (parsed.success && parsed.data.type === 'internal.capture_page') {
+  if (parsed.success && parsed.data.type === 'internal.capturePage') {
     handleCapturePage(parsed.data.rawContent || false).then(sendResponse);
     return true;
   }
@@ -25,7 +25,7 @@ async function handleCapturePage(rawContent: boolean): Promise<InternalResponse>
 
     if (!article) {
       return {
-        type: 'internal.processing_error',
+        type: 'internal.processingError',
         message: 'Failed to extract readable content from page',
       };
     }
@@ -39,12 +39,12 @@ async function handleCapturePage(rawContent: boolean): Promise<InternalResponse>
     }
 
     return {
-      type: 'internal.page_content',
+      type: 'internal.pageContent',
       content,
     };
   } catch (error) {
     return {
-      type: 'internal.processing_error',
+      type: 'internal.processingError',
       message: `Content extraction failed: ${error}`,
     };
   }

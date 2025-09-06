@@ -4,27 +4,27 @@ import { InternalRequestSchema, InternalResponseSchema } from './messages';
 
 describe('Extension Internal Message Schema', () => {
   describe('Request Schema with internal. prefix', () => {
-    it('should validate internal.connection_status request', () => {
-      const request = { type: 'internal.connection_status' };
+    it('should validate internal.connectionStatus request', () => {
+      const request = { type: 'internal.connectionStatus' };
       const result = InternalRequestSchema.safeParse(request);
       expect(result.success).toBe(true);
     });
 
-    it('should validate internal.list_patterns request', () => {
-      const request = { type: 'internal.list_patterns' };
+    it('should validate internal.listPatterns request', () => {
+      const request = { type: 'internal.listPatterns' };
       const result = InternalRequestSchema.safeParse(request);
       expect(result.success).toBe(true);
     });
 
-    it('should validate internal.capture_page request', () => {
-      const request = { type: 'internal.capture_page' };
+    it('should validate internal.capturePage request', () => {
+      const request = { type: 'internal.capturePage' };
       const result = InternalRequestSchema.safeParse(request);
       expect(result.success).toBe(true);
     });
 
-    it('should validate internal.process_content request', () => {
+    it('should validate internal.processContent request', () => {
       const request = {
-        type: 'internal.process_content',
+        type: 'internal.processContent',
         content: 'test content',
         pattern: 'test-pattern',
         customPrompt: 'test prompt',
@@ -33,8 +33,8 @@ describe('Extension Internal Message Schema', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should validate internal.reconnect_native request', () => {
-      const request = { type: 'internal.reconnect_native' };
+    it('should validate internal.reconnectNative request', () => {
+      const request = { type: 'internal.reconnectNative' };
       const result = InternalRequestSchema.safeParse(request);
       expect(result.success).toBe(true);
     });
@@ -47,54 +47,54 @@ describe('Extension Internal Message Schema', () => {
   });
 
   describe('Response Schema with internal. prefix', () => {
-    it('should validate internal.connection_status response', () => {
+    it('should validate internal.connectionStatus response', () => {
       const response = {
-        type: 'internal.connection_status',
+        type: 'internal.connectionStatus',
         status: 'connected',
       };
       const result = InternalResponseSchema.safeParse(response);
       expect(result.success).toBe(true);
     });
 
-    it('should validate internal.patterns_list response', () => {
+    it('should validate internal.patternsList response', () => {
       const response = {
-        type: 'internal.patterns_list',
+        type: 'internal.patternsList',
         patterns: ['pattern1', 'pattern2'],
       };
       const result = InternalResponseSchema.safeParse(response);
       expect(result.success).toBe(true);
     });
 
-    it('should validate internal.page_content response', () => {
+    it('should validate internal.pageContent response', () => {
       const response = {
-        type: 'internal.page_content',
+        type: 'internal.pageContent',
         content: 'page content',
       };
       const result = InternalResponseSchema.safeParse(response);
       expect(result.success).toBe(true);
     });
 
-    it('should validate internal.processing_content response', () => {
+    it('should validate internal.processingContent response', () => {
       const response = {
-        type: 'internal.processing_content',
+        type: 'internal.processingContent',
         content: 'processing content',
       };
       const result = InternalResponseSchema.safeParse(response);
       expect(result.success).toBe(true);
     });
 
-    it('should validate internal.processing_done response', () => {
+    it('should validate internal.processingDone response', () => {
       const response = {
-        type: 'internal.processing_done',
+        type: 'internal.processingDone',
         exitCode: 0,
       };
       const result = InternalResponseSchema.safeParse(response);
       expect(result.success).toBe(true);
     });
 
-    it('should validate internal.processing_error response', () => {
+    it('should validate internal.processingError response', () => {
       const response = {
-        type: 'internal.processing_error',
+        type: 'internal.processingError',
         message: 'error message',
       };
       const result = InternalResponseSchema.safeParse(response);

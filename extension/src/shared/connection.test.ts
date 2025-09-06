@@ -29,9 +29,9 @@ describe('connection helpers', () => {
 
   describe('sendSafely', () => {
     it('should send message and return response on success', async () => {
-      const request: InternalRequest = { type: 'internal.connection_status' };
+      const request: InternalRequest = { type: 'internal.connectionStatus' };
       const expectedResponse: InternalResponse = {
-        type: 'internal.connection_status',
+        type: 'internal.connectionStatus',
         status: 'connected',
       };
 
@@ -45,7 +45,7 @@ describe('connection helpers', () => {
     });
 
     it('should return undefined and log debug when "Receiving end does not exist" error occurs', async () => {
-      const request: InternalRequest = { type: 'internal.connection_status' };
+      const request: InternalRequest = { type: 'internal.connectionStatus' };
       const error = new Error('Could not establish connection. Receiving end does not exist.');
 
       const mockSendMessage = vi.mocked(chrome.runtime.sendMessage) as any;
@@ -63,7 +63,7 @@ describe('connection helpers', () => {
     });
 
     it('should return undefined and log error for other types of errors', async () => {
-      const request: InternalRequest = { type: 'internal.connection_status' };
+      const request: InternalRequest = { type: 'internal.connectionStatus' };
       const error = new Error('Some other error');
 
       const mockSendMessage = vi.mocked(chrome.runtime.sendMessage) as any;
@@ -81,7 +81,7 @@ describe('connection helpers', () => {
     });
 
     it('should handle non-Error objects as errors', async () => {
-      const request: InternalRequest = { type: 'internal.connection_status' };
+      const request: InternalRequest = { type: 'internal.connectionStatus' };
       const error = 'string error';
 
       const mockSendMessage = vi.mocked(chrome.runtime.sendMessage) as any;
@@ -102,7 +102,7 @@ describe('connection helpers', () => {
   describe('getConnectionStatus', () => {
     it('should return connection status from response', async () => {
       const expectedResponse: InternalResponse = {
-        type: 'internal.connection_status',
+        type: 'internal.connectionStatus',
         status: 'connected',
       };
 
@@ -111,7 +111,7 @@ describe('connection helpers', () => {
 
       const result = await getConnectionStatus();
 
-      expect(mockSendMessage).toHaveBeenCalledWith({ type: 'internal.connection_status' });
+      expect(mockSendMessage).toHaveBeenCalledWith({ type: 'internal.connectionStatus' });
       expect(result).toBe('connected');
     });
 
@@ -130,7 +130,7 @@ describe('connection helpers', () => {
 
     it('should return "disconnected" for wrong response type', async () => {
       const wrongResponse: InternalResponse = {
-        type: 'internal.patterns_list',
+        type: 'internal.patternsList',
         patterns: [],
       };
 
@@ -154,7 +154,7 @@ describe('connection helpers', () => {
 
       const internalListener = mockAddListener.mock.calls[0]?.[0];
       expect(internalListener).toBeDefined();
-      const message = { type: 'internal.connection_status', status: 'connected' };
+      const message = { type: 'internal.connectionStatus', status: 'connected' };
 
       internalListener!(message, {}, () => {});
 
@@ -172,7 +172,7 @@ describe('connection helpers', () => {
       const internalListener = calls[calls.length - 1]?.[0];
       expect(internalListener).toBeDefined();
 
-      const message = { type: 'internal.patterns_list', patterns: [] };
+      const message = { type: 'internal.patternsList', patterns: [] };
 
       internalListener!(message, {}, () => {});
 

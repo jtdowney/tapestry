@@ -168,7 +168,7 @@ describe('Background Script Integration', () => {
       disconnectHandler?.(mockPort);
 
       expect(mockSendMessage).toHaveBeenCalledWith({
-        type: 'internal.connection_status',
+        type: 'internal.connectionStatus',
         status: 'disconnected',
       });
     });
@@ -201,31 +201,31 @@ describe('Background Script Integration', () => {
   });
 
   describe('Message Routing', () => {
-    it('should handle connection_status requests', async () => {
+    it('should handle connectionStatus requests', async () => {
       await import('./background');
 
       const messageListener = vi.mocked(chrome.runtime.onMessage.addListener).mock.calls[0]?.[0];
       const sendResponse = vi.fn();
 
-      await messageListener?.({ type: 'internal.connection_status' }, {}, sendResponse);
+      await messageListener?.({ type: 'internal.connectionStatus' }, {}, sendResponse);
 
       expect(sendResponse).toHaveBeenCalledWith({
-        type: 'internal.connection_status',
+        type: 'internal.connectionStatus',
         status: 'disconnected',
       });
     });
 
-    it('should handle reconnect_native requests', async () => {
+    it('should handle reconnectNative requests', async () => {
       await import('./background');
 
       const messageListener = vi.mocked(chrome.runtime.onMessage.addListener).mock.calls[0]?.[0];
       const sendResponse = vi.fn();
 
-      await messageListener?.({ type: 'internal.reconnect_native' }, {}, sendResponse);
+      await messageListener?.({ type: 'internal.reconnectNative' }, {}, sendResponse);
 
       expect(mockConnectNative).toHaveBeenCalled();
       expect(sendResponse).toHaveBeenCalledWith({
-        type: 'internal.connection_status',
+        type: 'internal.connectionStatus',
         status: 'disconnected',
       });
     });
@@ -240,12 +240,12 @@ describe('Background Script Integration', () => {
 
       expect(result).toBe(false);
       expect(sendResponse).toHaveBeenCalledWith({
-        type: 'internal.processing_error',
+        type: 'internal.processingError',
         message: 'Invalid request format',
       });
     });
 
-    it('should handle capture_page requests successfully', async () => {
+    it('should handle capturePage requests successfully', async () => {
       const mockActiveTab = { id: 123 };
       mockTabsQuery.mockResolvedValue([mockActiveTab]);
       mockTabsSendMessage.mockImplementation((_tabId: number, _message: any, callback: any) => {
@@ -257,18 +257,18 @@ describe('Background Script Integration', () => {
       const messageListener = vi.mocked(chrome.runtime.onMessage.addListener).mock.calls[0]?.[0];
       const sendResponse = vi.fn();
 
-      await messageListener?.({ type: 'internal.capture_page' }, {}, sendResponse);
+      await messageListener?.({ type: 'internal.capturePage' }, {}, sendResponse);
 
       expect(chrome.tabs.query).toHaveBeenCalledWith({ active: true, currentWindow: true });
       expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(
         123,
-        { type: 'internal.capture_page' },
+        { type: 'internal.capturePage' },
         expect.any(Function)
       );
       expect(sendResponse).toHaveBeenCalledWith({ type: 'page_content', content: 'test content' });
     });
 
-    it('should handle capture_page when no active tab exists', async () => {
+    it('should handle capturePage when no active tab exists', async () => {
       mockTabsQuery.mockResolvedValue([]);
 
       await import('./background');
@@ -276,15 +276,15 @@ describe('Background Script Integration', () => {
       const messageListener = vi.mocked(chrome.runtime.onMessage.addListener).mock.calls[0]?.[0];
       const sendResponse = vi.fn();
 
-      await messageListener?.({ type: 'internal.capture_page' }, {}, sendResponse);
+      await messageListener?.({ type: 'internal.capturePage' }, {}, sendResponse);
 
       expect(sendResponse).toHaveBeenCalledWith({
-        type: 'internal.processing_error',
+        type: 'internal.processingError',
         message: 'No active tab',
       });
     });
 
-    it('should handle capture_page when active tab has no id', async () => {
+    it('should handle capturePage when active tab has no id', async () => {
       mockTabsQuery.mockResolvedValue([{ id: undefined }]);
 
       await import('./background');
@@ -292,15 +292,15 @@ describe('Background Script Integration', () => {
       const messageListener = vi.mocked(chrome.runtime.onMessage.addListener).mock.calls[0]?.[0];
       const sendResponse = vi.fn();
 
-      await messageListener?.({ type: 'internal.capture_page' }, {}, sendResponse);
+      await messageListener?.({ type: 'internal.capturePage' }, {}, sendResponse);
 
       expect(sendResponse).toHaveBeenCalledWith({
-        type: 'internal.processing_error',
+        type: 'internal.processingError',
         message: 'No active tab',
       });
     });
 
-    it('should handle capture_page when content script is not available', async () => {
+    it('should handle capturePage when content script is not available', async () => {
       mockTabsQuery.mockResolvedValue([{ id: 123 }]);
       mockTabsSendMessage.mockImplementation((_tabId: number, _message: any, callback: any) => {
         Object.defineProperty(chrome.runtime, 'lastError', {
@@ -316,15 +316,15 @@ describe('Background Script Integration', () => {
       const messageListener = vi.mocked(chrome.runtime.onMessage.addListener).mock.calls[0]?.[0];
       const sendResponse = vi.fn();
 
-      await messageListener?.({ type: 'internal.capture_page' }, {}, sendResponse);
+      await messageListener?.({ type: 'internal.capturePage' }, {}, sendResponse);
 
       expect(sendResponse).toHaveBeenCalledWith({
-        type: 'internal.processing_error',
+        type: 'internal.processingError',
         message: 'Content script not available. Please refresh the page.',
       });
     });
 
-    it('should handle capture_page when tabs.query throws error', async () => {
+    it('should handle capturePage when tabs.query throws error', async () => {
       mockTabsQuery.mockRejectedValue(new Error('Tab access denied'));
 
       await import('./background');
@@ -332,15 +332,15 @@ describe('Background Script Integration', () => {
       const messageListener = vi.mocked(chrome.runtime.onMessage.addListener).mock.calls[0]?.[0];
       const sendResponse = vi.fn();
 
-      await messageListener?.({ type: 'internal.capture_page' }, {}, sendResponse);
+      await messageListener?.({ type: 'internal.capturePage' }, {}, sendResponse);
 
       expect(sendResponse).toHaveBeenCalledWith({
-        type: 'internal.processing_error',
+        type: 'internal.processingError',
         message: 'Failed to capture page: Error: Tab access denied',
       });
     });
 
-    it('should handle process_content when connected', async () => {
+    it('should handle processContent when connected', async () => {
       await import('./background');
 
       const onStartupListener = vi.mocked(chrome.runtime.onStartup.addListener).mock.calls[0]?.[0];
@@ -362,7 +362,7 @@ describe('Background Script Integration', () => {
 
       const result = await messageListener?.(
         {
-          type: 'internal.process_content',
+          type: 'internal.processContent',
           content: 'test content',
           pattern: 'summarize',
           customPrompt: 'custom prompt',
@@ -378,7 +378,7 @@ describe('Background Script Integration', () => {
       expect(mockPort.postMessage).toHaveBeenCalled();
     });
 
-    it('should handle process_content when not connected', async () => {
+    it('should handle processContent when not connected', async () => {
       await import('./background');
 
       const messageListener = vi.mocked(chrome.runtime.onMessage.addListener).mock.calls[0]?.[0];
@@ -386,7 +386,7 @@ describe('Background Script Integration', () => {
 
       await messageListener?.(
         {
-          type: 'internal.process_content',
+          type: 'internal.processContent',
           content: 'test content',
           pattern: 'summarize',
         },
@@ -395,7 +395,7 @@ describe('Background Script Integration', () => {
       );
 
       expect(sendResponse).toHaveBeenCalledWith({
-        type: 'internal.processing_error',
+        type: 'internal.processingError',
         message: 'Not connected to native host',
       });
     });
@@ -420,7 +420,7 @@ describe('Background Script Integration', () => {
       );
 
       expect(mockSendMessage).toHaveBeenCalledWith({
-        type: 'internal.connection_status',
+        type: 'internal.connectionStatus',
         status: 'connected',
       });
     });
@@ -438,7 +438,7 @@ describe('Background Script Integration', () => {
       );
 
       expect(mockSendMessage).toHaveBeenCalledWith({
-        type: 'internal.connection_status',
+        type: 'internal.connectionStatus',
         status: 'disconnected',
       });
     });
@@ -460,7 +460,7 @@ describe('Background Script Integration', () => {
       );
 
       expect(mockSendMessage).toHaveBeenCalledWith({
-        type: 'internal.processing_content',
+        type: 'internal.processingContent',
         content: 'test content',
       });
     });
@@ -478,7 +478,7 @@ describe('Background Script Integration', () => {
       );
 
       expect(mockSendMessage).toHaveBeenCalledWith({
-        type: 'internal.processing_done',
+        type: 'internal.processingDone',
         exitCode: 0,
       });
     });
@@ -496,7 +496,7 @@ describe('Background Script Integration', () => {
       );
 
       expect(mockSendMessage).toHaveBeenCalledWith({
-        type: 'internal.processing_error',
+        type: 'internal.processingError',
         message: 'test error',
       });
     });
@@ -543,7 +543,7 @@ describe('Background Script Integration', () => {
       const messageListener = vi.mocked(chrome.runtime.onMessage.addListener).mock.calls[0]?.[0];
       const sendResponse = vi.fn();
 
-      await messageListener?.({ type: 'internal.list_patterns' }, {}, sendResponse);
+      await messageListener?.({ type: 'internal.listPatterns' }, {}, sendResponse);
 
       messageHandler?.(
         {
@@ -554,7 +554,7 @@ describe('Background Script Integration', () => {
         mockPort
       );
 
-      await messageListener?.({ type: 'internal.list_patterns' }, {}, vi.fn());
+      await messageListener?.({ type: 'internal.listPatterns' }, {}, vi.fn());
 
       messageHandler?.(
         {
@@ -609,7 +609,7 @@ describe('Background Script Integration', () => {
   });
 
   describe('Error Path Coverage', () => {
-    it('should handle native host send failure during process_content', async () => {
+    it('should handle native host send failure during processContent', async () => {
       await import('./background');
 
       const onStartupListener = vi.mocked(chrome.runtime.onStartup.addListener).mock.calls[0]?.[0];
@@ -636,7 +636,7 @@ describe('Background Script Integration', () => {
 
       await messageListener?.(
         {
-          type: 'internal.process_content',
+          type: 'internal.processContent',
           content: 'test content',
           pattern: 'test_pattern',
         },
@@ -645,7 +645,7 @@ describe('Background Script Integration', () => {
       );
 
       expect(sendResponse).toHaveBeenCalledWith({
-        type: 'internal.processing_error',
+        type: 'internal.processingError',
         message: 'Failed to send request to native host',
       });
 

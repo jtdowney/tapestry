@@ -35,14 +35,14 @@ describe('Sidebar Component', () => {
     storageListeners = [];
 
     mockSendMessage = vi.fn().mockResolvedValue({
-      type: 'internal.patterns_list',
+      type: 'internal.patternsList',
       patterns: ['pattern1', 'pattern2'],
     });
 
     const { sendSafely, getConnectionStatus, addConnectionListener, removeConnectionListener } =
       await import('$shared/connection');
     vi.mocked(sendSafely).mockResolvedValue({
-      type: 'internal.patterns_list',
+      type: 'internal.patternsList',
       patterns: ['pattern1', 'pattern2'],
     });
     vi.mocked(getConnectionStatus).mockResolvedValue('connected');
@@ -85,7 +85,7 @@ describe('Sidebar Component', () => {
           setTimeout(
             () =>
               callback({
-                type: 'internal.patterns_list',
+                type: 'internal.patternsList',
                 patterns: ['pattern1', 'pattern2'],
               }),
             0
@@ -103,14 +103,14 @@ describe('Sidebar Component', () => {
     it('should load patterns on mount', async () => {
       const { sendSafely } = await import('$shared/connection');
       vi.mocked(sendSafely).mockResolvedValue({
-        type: 'internal.patterns_list',
+        type: 'internal.patternsList',
         patterns: ['pattern1', 'pattern2'],
       });
 
       render(Sidebar);
 
       await waitFor(() => {
-        expect(sendSafely).toHaveBeenCalledWith({ type: 'internal.list_patterns' });
+        expect(sendSafely).toHaveBeenCalledWith({ type: 'internal.listPatterns' });
       });
     });
 
@@ -139,7 +139,7 @@ describe('Sidebar Component', () => {
     it('should filter patterns based on visibility settings', async () => {
       const { sendSafely } = await import('$shared/connection');
       vi.mocked(sendSafely).mockResolvedValue({
-        type: 'internal.patterns_list',
+        type: 'internal.patternsList',
         patterns: ['pattern1', 'pattern2', 'pattern3'],
       });
 
@@ -169,7 +169,7 @@ describe('Sidebar Component', () => {
     it('should set default pattern when specified in settings', async () => {
       const { sendSafely } = await import('$shared/connection');
       vi.mocked(sendSafely).mockResolvedValue({
-        type: 'internal.patterns_list',
+        type: 'internal.patternsList',
         patterns: ['pattern1', 'pattern2'],
       });
 
@@ -196,7 +196,7 @@ describe('Sidebar Component', () => {
     it('should show Custom option when showCustomPrompt is true', async () => {
       const { sendSafely } = await import('$shared/connection');
       vi.mocked(sendSafely).mockResolvedValue({
-        type: 'internal.patterns_list',
+        type: 'internal.patternsList',
         patterns: ['pattern1'],
       });
 
@@ -224,7 +224,7 @@ describe('Sidebar Component', () => {
     it('should hide Custom option when showCustomPrompt is false', async () => {
       const { sendSafely } = await import('$shared/connection');
       vi.mocked(sendSafely).mockResolvedValue({
-        type: 'internal.patterns_list',
+        type: 'internal.patternsList',
         patterns: ['pattern1'],
       });
 
@@ -255,7 +255,7 @@ describe('Sidebar Component', () => {
       const { container } = render(Sidebar);
 
       messageListeners.forEach((listener) =>
-        listener({ type: 'internal.processing_content', content: 'New content chunk' })
+        listener({ type: 'internal.processingContent', content: 'New content chunk' })
       );
 
       await waitFor(() => {
@@ -276,7 +276,7 @@ describe('Sidebar Component', () => {
       const goButton = getByRole('button', { name: /go/i });
       await fireEvent.click(goButton);
 
-      messageListeners.forEach((listener) => listener({ type: 'internal.processing_done' }));
+      messageListeners.forEach((listener) => listener({ type: 'internal.processingDone' }));
 
       await waitFor(() => {
         expect(getByRole('button', { name: /go/i })).not.toBeDisabled();
@@ -287,7 +287,7 @@ describe('Sidebar Component', () => {
       const { container } = render(Sidebar);
 
       messageListeners.forEach((listener) =>
-        listener({ type: 'internal.processing_error', message: 'Test error' })
+        listener({ type: 'internal.processingError', message: 'Test error' })
       );
 
       await waitFor(() => {
@@ -307,7 +307,7 @@ describe('Sidebar Component', () => {
 
       const { sendSafely } = await import('$shared/connection');
       vi.mocked(sendSafely).mockResolvedValue({
-        type: 'internal.patterns_list',
+        type: 'internal.patternsList',
         patterns: ['pattern1'],
       });
 
@@ -352,7 +352,7 @@ describe('Sidebar Component', () => {
 
       const { sendSafely } = await import('$shared/connection');
       vi.mocked(sendSafely).mockResolvedValue({
-        type: 'internal.patterns_list',
+        type: 'internal.patternsList',
         patterns: ['pattern1'],
       });
 
@@ -412,7 +412,7 @@ describe('Sidebar Component', () => {
 
     it('should handle missing storage settings gracefully', async () => {
       mockSendMessage = createMockSendMessage({
-        type: 'internal.patterns_list',
+        type: 'internal.patternsList',
         patterns: ['pattern1'],
       });
       chrome.runtime.sendMessage = mockSendMessage;
@@ -453,7 +453,7 @@ describe('Sidebar Component', () => {
       const { container } = render(Sidebar);
 
       messageListeners.forEach((listener) =>
-        listener({ type: 'internal.processing_content', content: '# Test Header' })
+        listener({ type: 'internal.processingContent', content: '# Test Header' })
       );
 
       await waitFor(() => {
@@ -478,7 +478,7 @@ describe('Sidebar Component', () => {
       const { container } = render(Sidebar);
 
       messageListeners.forEach((listener) =>
-        listener({ type: 'internal.processing_content', content: '# Test Header' })
+        listener({ type: 'internal.processingContent', content: '# Test Header' })
       );
 
       await waitFor(() => {
