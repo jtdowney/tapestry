@@ -164,6 +164,14 @@ function handleNativeMessage(message: NativeResponse, port: chrome.runtime.Port)
       }
       break;
     }
+    case 'native.contextsList': {
+      const respond = pendingRequests.get(message.id);
+      if (respond) {
+        respond({ type: 'internal.contexts_list', contexts: message.contexts });
+        pendingRequests.delete(message.id);
+      }
+      break;
+    }
     case 'native.content': {
       const truncatedContent =
         message.content.length > 100 ? `${message.content.slice(0, 100)}...` : message.content;
@@ -283,6 +291,48 @@ async function handleMessage(
       }
       break;
     }
+    case 'internal.list_contexts': {
+      if (nativeConnection.status !== 'connected') {
+        console.debug('Not connected to native host');
+        sendResponse({
+          type: 'internal.processing_error',
+          message: 'Not connected to native host',
+        });
+        return;
+      }
+
+      const { path: fabricPath } = await loadFabricSettings();
+
+      const id = generateRequestId();
+      const result = NativeRequestSchema.safeParse({
+        type: 'native.listContexts',
+        id,
+        path: fabricPath,
+      });
+
+      if (!result.success) {
+        console.warn('Failed to create listContexts request:', result.error);
+        sendResponse({
+          type: 'internal.processing_error',
+          message: 'Invalid request configuration',
+        });
+        return;
+      }
+
+      try {
+        console.debug('Sending listContexts request to native host: ', result.data);
+        nativeConnection.port.postMessage(result.data);
+        pendingRequests.set(id, sendResponse);
+      } catch (error) {
+        console.error('Failed to send listContexts request:', error);
+        sendResponse({
+          type: 'internal.processing_error',
+          message: 'Failed to send request to native host',
+        });
+        return;
+      }
+      break;
+    }
     case 'internal.capture_page': {
       try {
         const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -321,7 +371,11 @@ async function handleMessage(
         return;
       }
 
-      const { path: fabricPath, model: fabricModel } = await loadFabricSettings();
+      const {
+        path: fabricPath,
+        model: fabricModel,
+        context: fabricContext,
+      } = await loadFabricSettings();
 
       const id = generateRequestId();
       const result = NativeRequestSchema.safeParse({
@@ -330,6 +384,7 @@ async function handleMessage(
         content: data.content,
         model: fabricModel,
         pattern: data.pattern,
+        context: fabricContext,
         path: fabricPath,
         customPrompt: data.customPrompt,
       });

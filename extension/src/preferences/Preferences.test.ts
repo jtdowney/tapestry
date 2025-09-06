@@ -73,6 +73,7 @@ describe('Preferences Component', () => {
       vi.mocked(loadSettings).mockResolvedValue({
         fabricPath: '/usr/bin/fabric',
         fabricModel: 'gpt-4',
+        fabricContext: '',
         defaultPattern: 'summarize',
         visiblePatterns: ['summarize', 'extract_wisdom'],
         showCustomPrompt: true,
@@ -92,6 +93,7 @@ describe('Preferences Component', () => {
       vi.mocked(loadSettings).mockResolvedValue({
         fabricPath: '',
         fabricModel: '',
+        fabricContext: '',
         defaultPattern: '',
         visiblePatterns: [],
         showCustomPrompt: true,
@@ -130,6 +132,7 @@ describe('Preferences Component', () => {
       vi.mocked(loadSettings).mockResolvedValue({
         fabricPath: '',
         fabricModel: '',
+        fabricContext: '',
         defaultPattern: '',
         visiblePatterns: [],
         showCustomPrompt: true,
@@ -158,6 +161,7 @@ describe('Preferences Component', () => {
       vi.mocked(loadSettings).mockResolvedValue({
         fabricPath: '',
         fabricModel: 'gpt-3.5-turbo',
+        fabricContext: '',
         defaultPattern: '',
         visiblePatterns: [],
         showCustomPrompt: true,
@@ -186,6 +190,7 @@ describe('Preferences Component', () => {
       vi.mocked(loadSettings).mockResolvedValue({
         fabricPath: '',
         fabricModel: '',
+        fabricContext: '',
         defaultPattern: '',
         visiblePatterns: [],
         showCustomPrompt: true,
@@ -216,6 +221,7 @@ describe('Preferences Component', () => {
       vi.mocked(loadSettings).mockResolvedValue({
         fabricPath: '',
         fabricModel: '',
+        fabricContext: '',
         defaultPattern: '',
         visiblePatterns: [],
         showCustomPrompt: true,
@@ -255,6 +261,7 @@ describe('Preferences Component', () => {
       vi.mocked(loadSettings).mockResolvedValue({
         fabricPath: '/usr/bin/fabric',
         fabricModel: 'gpt-4',
+        fabricContext: '',
         defaultPattern: 'summarize',
         visiblePatterns: ['pattern1', 'pattern2'],
         showCustomPrompt: true,
@@ -275,6 +282,7 @@ describe('Preferences Component', () => {
       vi.mocked(loadSettings).mockResolvedValue({
         fabricPath: '',
         fabricModel: '',
+        fabricContext: '',
         defaultPattern: '',
         visiblePatterns: ['pattern1'],
         showCustomPrompt: true,
@@ -331,6 +339,7 @@ describe('Preferences Component', () => {
       vi.mocked(loadSettings).mockResolvedValue({
         fabricPath: '',
         fabricModel: '',
+        fabricContext: '',
         defaultPattern: '',
         visiblePatterns: [],
         showCustomPrompt: true,
@@ -397,6 +406,7 @@ describe('Preferences Component', () => {
       vi.mocked(loadSettings).mockResolvedValue({
         fabricPath: '',
         fabricModel: '',
+        fabricContext: '',
         defaultPattern: '',
         visiblePatterns: ['pattern1', 'pattern2'],
         showCustomPrompt: true,
@@ -499,6 +509,7 @@ describe('Preferences Component', () => {
       vi.mocked(loadSettings).mockResolvedValue({
         fabricPath: '',
         fabricModel: '',
+        fabricContext: '',
         defaultPattern: '',
         visiblePatterns: [],
         showCustomPrompt: true,
@@ -546,7 +557,10 @@ describe('Preferences Component', () => {
       render(Preferences);
 
       await waitFor(() => {
-        expect(consoleSpy).toHaveBeenCalledWith('Failed to load patterns:', expect.any(Error));
+        expect(consoleSpy).toHaveBeenCalledWith(
+          'Failed to load available options:',
+          expect.any(Error)
+        );
       });
 
       consoleSpy.mockRestore();
@@ -572,6 +586,7 @@ describe('Preferences Component', () => {
       vi.mocked(loadSettings).mockResolvedValue({
         fabricPath: '/usr/bin/fabric',
         fabricModel: 'gpt-4',
+        fabricContext: '',
         defaultPattern: 'summarize',
         visiblePatterns: [],
         showCustomPrompt: true,
@@ -593,6 +608,7 @@ describe('Preferences Component', () => {
       vi.mocked(loadSettings).mockResolvedValue({
         fabricPath: '/usr/bin/fabric',
         fabricModel: 'gpt-4',
+        fabricContext: '',
         defaultPattern: 'summarize',
         visiblePatterns: ['pattern1', 'pattern2'],
         showCustomPrompt: true,
@@ -644,6 +660,7 @@ describe('Preferences Component', () => {
       vi.mocked(loadSettings).mockResolvedValue({
         fabricPath: '',
         fabricModel: '',
+        fabricContext: '',
         defaultPattern: '',
         visiblePatterns: ['pattern1'],
         showCustomPrompt: true,
@@ -718,6 +735,7 @@ describe('Preferences Component', () => {
       vi.mocked(loadSettings).mockResolvedValue({
         fabricPath: '',
         fabricModel: '',
+        fabricContext: '',
         defaultPattern: 'pattern1',
         visiblePatterns: ['pattern1', 'pattern2'],
         showCustomPrompt: true,
@@ -789,6 +807,7 @@ describe('Preferences Component', () => {
       vi.mocked(loadSettings).mockResolvedValue({
         fabricPath: '',
         fabricModel: '',
+        fabricContext: '',
         defaultPattern: '',
         visiblePatterns: [],
         showCustomPrompt: true,
@@ -832,6 +851,7 @@ describe('Preferences Component', () => {
       vi.mocked(loadSettings).mockResolvedValue({
         fabricPath: '',
         fabricModel: '',
+        fabricContext: '',
         defaultPattern: 'pattern1',
         visiblePatterns: ['pattern1'],
         showCustomPrompt: true,
@@ -922,6 +942,7 @@ describe('Preferences Component', () => {
       vi.mocked(loadSettings).mockResolvedValue({
         fabricPath: '',
         fabricModel: '',
+        fabricContext: '',
         defaultPattern: '',
         visiblePatterns: [],
         showCustomPrompt: true,
@@ -951,6 +972,7 @@ describe('Preferences Component', () => {
       vi.mocked(loadSettings).mockResolvedValue({
         fabricPath: '',
         fabricModel: '',
+        fabricContext: '',
         defaultPattern: '',
         visiblePatterns: [],
         showCustomPrompt: true,
@@ -985,6 +1007,7 @@ describe('Preferences Component', () => {
       vi.mocked(loadSettings).mockResolvedValue({
         fabricPath: '',
         fabricModel: '',
+        fabricContext: '',
         defaultPattern: '',
         visiblePatterns: [],
         showCustomPrompt: true,
@@ -1013,6 +1036,7 @@ describe('Preferences Component', () => {
       vi.mocked(loadSettings).mockResolvedValue({
         fabricPath: '',
         fabricModel: '',
+        fabricContext: '',
         defaultPattern: '',
         visiblePatterns: largePatternList.slice(0, 50),
         showCustomPrompt: true,
@@ -1037,6 +1061,7 @@ describe('Preferences Component', () => {
       vi.mocked(loadSettings).mockResolvedValue({
         fabricPath: '',
         fabricModel: '',
+        fabricContext: '',
         defaultPattern: '',
         visiblePatterns: [],
         showCustomPrompt: true,
@@ -1103,6 +1128,7 @@ describe('Preferences Component', () => {
       vi.mocked(loadSettings).mockResolvedValue({
         fabricPath: '',
         fabricModel: '',
+        fabricContext: '',
         defaultPattern: '',
         visiblePatterns: [],
         showCustomPrompt: true,
@@ -1134,6 +1160,7 @@ describe('Preferences Component', () => {
       vi.mocked(loadSettings).mockResolvedValue({
         fabricPath: '',
         fabricModel: 'gpt-3.5',
+        fabricContext: '',
         defaultPattern: 'summarize',
         showCustomPrompt: false,
         renderAsMarkdown: false,

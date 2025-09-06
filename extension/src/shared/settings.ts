@@ -1,6 +1,7 @@
 export interface Settings {
   fabricPath: string;
   fabricModel: string;
+  fabricContext: string;
   defaultPattern: string;
   visiblePatterns: string[];
   showCustomPrompt: boolean;
@@ -11,6 +12,7 @@ export interface Settings {
 const DEFAULT_SETTINGS: Settings = {
   fabricPath: '',
   fabricModel: '',
+  fabricContext: '',
   defaultPattern: '',
   visiblePatterns: [],
   showCustomPrompt: true,
@@ -25,6 +27,7 @@ export async function loadSettings(): Promise<Settings> {
     return {
       fabricPath: stored.fabricPath ?? DEFAULT_SETTINGS.fabricPath,
       fabricModel: stored.fabricModel ?? DEFAULT_SETTINGS.fabricModel,
+      fabricContext: stored.fabricContext ?? DEFAULT_SETTINGS.fabricContext,
       defaultPattern: stored.defaultPattern ?? DEFAULT_SETTINGS.defaultPattern,
       visiblePatterns: Array.isArray(stored.visiblePatterns)
         ? stored.visiblePatterns
@@ -52,11 +55,15 @@ export async function saveLocal(updates: Partial<Settings>): Promise<void> {
   }
 }
 
-export async function loadFabricSettings(): Promise<{ path?: string; model?: string }> {
+export async function loadFabricSettings(): Promise<{
+  path?: string;
+  model?: string;
+  context?: string;
+}> {
   try {
-    const stored = await chrome.storage.local.get(['fabricPath', 'fabricModel']);
+    const stored = await chrome.storage.local.get(['fabricPath', 'fabricModel', 'fabricContext']);
 
-    const result: { path?: string; model?: string } = {};
+    const result: { path?: string; model?: string; context?: string } = {};
 
     if (stored.fabricPath) {
       result.path = stored.fabricPath;
@@ -64,6 +71,10 @@ export async function loadFabricSettings(): Promise<{ path?: string; model?: str
 
     if (stored.fabricModel) {
       result.model = stored.fabricModel;
+    }
+
+    if (stored.fabricContext) {
+      result.context = stored.fabricContext;
     }
 
     return result;

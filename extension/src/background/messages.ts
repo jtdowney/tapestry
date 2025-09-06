@@ -14,6 +14,11 @@ export const NativeResponseSchema = z.discriminatedUnion('type', [
     patterns: z.array(z.string()),
   }),
   z.object({
+    type: z.literal('native.contextsList'),
+    id: z.uuid(),
+    contexts: z.array(z.string()),
+  }),
+  z.object({
     type: z.literal('native.content'),
     id: z.uuid(),
     content: z.string(),
@@ -44,11 +49,17 @@ export const NativeRequestSchema = z.discriminatedUnion('type', [
     path: z.optional(z.string()),
   }),
   z.object({
+    type: z.literal('native.listContexts'),
+    id: z.uuid(),
+    path: z.optional(z.string()),
+  }),
+  z.object({
     type: z.literal('native.processContent'),
     id: z.uuid(),
     content: z.string(),
     model: z.optional(z.string()),
     pattern: z.optional(z.string()),
+    context: z.optional(z.string()),
     path: z.optional(z.string()),
     customPrompt: z.optional(z.string()),
   }),

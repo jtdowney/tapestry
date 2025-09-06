@@ -41,6 +41,7 @@ describe('settings', () => {
       expect(settings).toEqual({
         fabricPath: '',
         fabricModel: '',
+        fabricContext: '',
         defaultPattern: '',
         visiblePatterns: [],
         showCustomPrompt: true,
@@ -53,6 +54,7 @@ describe('settings', () => {
       const storedSettings = {
         fabricPath: '/usr/local/bin/fabric',
         fabricModel: 'gpt-4o',
+        fabricContext: 'tapestry',
         defaultPattern: 'summarize',
         visiblePatterns: ['summarize', 'extract_wisdom'],
         showCustomPrompt: false,
@@ -78,6 +80,7 @@ describe('settings', () => {
       expect(settings).toEqual({
         fabricPath: '/usr/local/bin/fabric',
         fabricModel: '',
+        fabricContext: '',
         defaultPattern: '',
         visiblePatterns: [],
         showCustomPrompt: false,
@@ -114,6 +117,7 @@ describe('settings', () => {
       const storedData = {
         fabricPath: '/usr/local/bin/fabric',
         fabricModel: 'gpt-4o',
+        fabricContext: 'tapestry',
         defaultPattern: 'summarize',
       };
       mockStorage.local.get.mockResolvedValue(storedData);
@@ -123,8 +127,13 @@ describe('settings', () => {
       expect(fabricSettings).toEqual({
         path: '/usr/local/bin/fabric',
         model: 'gpt-4o',
+        context: 'tapestry',
       });
-      expect(mockStorage.local.get).toHaveBeenCalledWith(['fabricPath', 'fabricModel']);
+      expect(mockStorage.local.get).toHaveBeenCalledWith([
+        'fabricPath',
+        'fabricModel',
+        'fabricContext',
+      ]);
     });
 
     it('should return empty object when no fabric settings exist', async () => {

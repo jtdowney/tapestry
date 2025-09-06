@@ -49,6 +49,17 @@ impl<'a> FabricCommandBuilder<'a> {
         self
     }
 
+    pub fn context<S: Into<String>>(mut self, context: S) -> Self {
+        self.args.push("--context".to_string());
+        self.args.push(context.into());
+        self
+    }
+
+    pub fn list_contexts(mut self) -> Self {
+        self.args.push("--listcontexts".to_string());
+        self
+    }
+
     pub fn custom_prompt<S: Into<String>>(mut self, prompt: S) -> Self {
         self.args.push(prompt.into());
         self
@@ -232,5 +243,34 @@ mod tests {
         let builder = FabricCommandBuilder::new(&path);
 
         assert!(builder.args.is_empty());
+    }
+
+    #[test]
+    fn test_builder_context() {
+        let path = Utf8PathBuf::from("/usr/bin/fabric-ai");
+        let builder = FabricCommandBuilder::new(&path).context("tapestry");
+
+        assert_eq!(builder.args, vec!["--context", "tapestry"]);
+    }
+
+    #[test]
+    fn test_builder_list_contexts() {
+        let path = Utf8PathBuf::from("/usr/bin/fabric-ai");
+        let builder = FabricCommandBuilder::new(&path).list_contexts();
+
+        assert_eq!(builder.args, vec!["--listcontexts"]);
+    }
+
+    #[test]
+    fn test_builder_with_context_and_pattern() {
+        let path = Utf8PathBuf::from("/usr/bin/fabric-ai");
+        let builder = FabricCommandBuilder::new(&path)
+            .context("tapestry")
+            .pattern("summarize");
+
+        assert_eq!(
+            builder.args,
+            vec!["--context", "tapestry", "--pattern", "summarize"]
+        );
     }
 }

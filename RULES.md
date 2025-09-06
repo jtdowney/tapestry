@@ -151,7 +151,7 @@ The system uses Chrome/Firefox native messaging protocol:
   - `Preferences.svelte`: Simple settings UI
   - Chrome storage API integration
   - Settings:
-    - `fabricPath` and `fabricModel`
+    - `fabricPath`, `fabricModel`, and `fabricContext`
     - `defaultPattern` and `visiblePatterns` controls (Select All/Recommended/Deselect All)
     - `showCustomPrompt` to include a Custom option in the sidebar
     - `renderAsMarkdown` to toggle markdown rendering
@@ -180,7 +180,7 @@ The system uses Chrome/Firefox native messaging protocol:
   - Streams content lines and sends done/error responses
 
 - **src/fabric.rs**: Fluent builder for Fabric CLI commands
-  - `--version`, `--listpatterns`, `--stream`, `--model`, `--pattern`, custom prompt
+  - `--version`, `--listpatterns`, `--listcontexts`, `--stream`, `--model`, `--pattern`, `--context`, custom prompt
 
 - **examples/**
   - `interactive_client.rs` (interactive testing)
@@ -193,10 +193,12 @@ The system uses Chrome/Firefox native messaging protocol:
 enum RequestPayload {
     Ping,                    // Connection test
     ListPatterns,           // Get available patterns
+    ListContexts,           // Get available contexts
     ProcessContent {        // Process content through Fabric
         content: String,
         model: Option<String>,
         pattern: Option<String>,
+        context: Option<String>,
         custom_prompt: Option<String>,
     }
 }
@@ -213,6 +215,9 @@ enum ResponsePayload {
     PatternsList {         // Available patterns
         patterns: Vec<String>,
     },
+    ContextsList {         // Available contexts
+        contexts: Vec<String>,
+    },
     Content {              // Streaming content line
         content: String,
     },
@@ -227,8 +232,8 @@ enum ResponsePayload {
 
 ## Extension Internal Messages (Summary)
 
-- Requests: `internal.connection_status`, `internal.list_patterns`, `internal.capture_page`, `internal.process_content`, `internal.reconnect_native`.
-- Responses/Events: `internal.connection_status` (broadcast), `internal.patterns_list`, `internal.page_content`, `internal.processing_content` (streamed), `internal.processing_done`, `internal.processing_error`.
+- Requests: `internal.connection_status`, `internal.list_patterns`, `internal.list_contexts`, `internal.capture_page`, `internal.process_content`, `internal.reconnect_native`.
+- Responses/Events: `internal.connection_status` (broadcast), `internal.patterns_list`, `internal.contexts_list`, `internal.page_content`, `internal.processing_content` (streamed), `internal.processing_done`, `internal.processing_error`.
   - Defined via Zod discriminated unions in `extension/src/shared/messages.ts`.
 
 ## Coding Style & Naming Conventions

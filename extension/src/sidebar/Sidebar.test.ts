@@ -53,6 +53,7 @@ describe('Sidebar Component', () => {
     vi.mocked(loadSettings).mockResolvedValue({
       fabricPath: '',
       fabricModel: '',
+      fabricContext: '',
       defaultPattern: '',
       visiblePatterns: ['pattern1', 'pattern2'],
       showCustomPrompt: true,
@@ -118,6 +119,7 @@ describe('Sidebar Component', () => {
       vi.mocked(loadSettings).mockResolvedValue({
         fabricPath: '',
         fabricModel: '',
+        fabricContext: '',
         defaultPattern: 'pattern1',
         visiblePatterns: ['pattern1'],
         showCustomPrompt: true,
@@ -145,6 +147,7 @@ describe('Sidebar Component', () => {
       vi.mocked(loadSettings).mockResolvedValue({
         fabricPath: '',
         fabricModel: '',
+        fabricContext: '',
         defaultPattern: '',
         visiblePatterns: ['pattern1', 'pattern3'],
         showCustomPrompt: true,
@@ -174,6 +177,7 @@ describe('Sidebar Component', () => {
       vi.mocked(loadSettings).mockResolvedValue({
         fabricPath: '',
         fabricModel: '',
+        fabricContext: '',
         defaultPattern: 'pattern2',
         visiblePatterns: ['pattern1', 'pattern2'],
         showCustomPrompt: true,
@@ -200,6 +204,7 @@ describe('Sidebar Component', () => {
       vi.mocked(loadSettings).mockResolvedValue({
         fabricPath: '',
         fabricModel: '',
+        fabricContext: '',
         defaultPattern: '',
         visiblePatterns: ['pattern1'],
         showCustomPrompt: true,
@@ -227,6 +232,7 @@ describe('Sidebar Component', () => {
       vi.mocked(loadSettings).mockResolvedValue({
         fabricPath: '',
         fabricModel: '',
+        fabricContext: '',
         defaultPattern: '',
         visiblePatterns: ['pattern1'],
         showCustomPrompt: false,
@@ -309,6 +315,7 @@ describe('Sidebar Component', () => {
       vi.mocked(loadSettings).mockResolvedValue({
         fabricPath: '',
         fabricModel: '',
+        fabricContext: '',
         defaultPattern: '',
         visiblePatterns: ['pattern1'],
         showCustomPrompt: true,
@@ -353,6 +360,7 @@ describe('Sidebar Component', () => {
       vi.mocked(loadSettings).mockResolvedValue({
         fabricPath: '',
         fabricModel: '',
+        fabricContext: '',
         defaultPattern: '',
         visiblePatterns: ['pattern1'],
         showCustomPrompt: true,
@@ -412,6 +420,7 @@ describe('Sidebar Component', () => {
       vi.mocked(loadSettings).mockResolvedValue({
         fabricPath: '',
         fabricModel: '',
+        fabricContext: '',
         defaultPattern: '',
         visiblePatterns: [],
         showCustomPrompt: true,
@@ -433,6 +442,7 @@ describe('Sidebar Component', () => {
       vi.mocked(loadSettings).mockResolvedValue({
         fabricPath: '',
         fabricModel: '',
+        fabricContext: '',
         defaultPattern: '',
         visiblePatterns: [],
         showCustomPrompt: true,
@@ -457,6 +467,7 @@ describe('Sidebar Component', () => {
       vi.mocked(loadSettings).mockResolvedValue({
         fabricPath: '',
         fabricModel: '',
+        fabricContext: '',
         defaultPattern: '',
         visiblePatterns: [],
         showCustomPrompt: true,

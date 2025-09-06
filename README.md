@@ -124,6 +124,27 @@ This command will show:
    - Input custom text
    - Execute the selected pattern
 
+### Using Fabric Contexts
+
+The extension supports Fabric's context feature, which allows you to add pre-defined instructions to all pattern executions.
+
+To use contexts:
+1. Create context files in `~/.config/fabric/contexts/`
+2. Open Tapestry preferences
+3. Select your context from the "Default Context" dropdown
+4. All patterns will now include your context instructions
+
+#### Suggested Context: `tapestry`
+
+For optimal rendering in the Tapestry sidebar, we recommend creating a `tapestry` context that ensures markdown formatting:
+
+```bash
+# Create ~/.config/fabric/contexts/tapestry
+echo "Format your entire response in clean, well-structured Markdown suitable for rendering in a browser extension. Use proper headers, code blocks, lists, and emphasis where appropriate." > ~/.config/fabric/contexts/tapestry
+```
+
+This context ensures all Fabric patterns output markdown that renders beautifully in Tapestry's sidebar.
+
 ## Development
 
 ### Building

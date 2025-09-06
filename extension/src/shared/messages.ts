@@ -8,6 +8,9 @@ export const InternalRequestSchema = z.discriminatedUnion('type', [
     type: z.literal('internal.list_patterns'),
   }),
   z.object({
+    type: z.literal('internal.list_contexts'),
+  }),
+  z.object({
     type: z.literal('internal.capture_page'),
     rawContent: z.optional(z.boolean()),
   }),
@@ -30,6 +33,10 @@ export const InternalResponseSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('internal.patterns_list'),
     patterns: z.array(z.string()),
+  }),
+  z.object({
+    type: z.literal('internal.contexts_list'),
+    contexts: z.array(z.string()),
   }),
   z.object({
     type: z.literal('internal.page_content'),

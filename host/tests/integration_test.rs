@@ -171,6 +171,7 @@ async fn test_real_command_runner_process_content() {
         &runner,
         None,
         None,
+        None,
         Some("Say 'Hello World' and nothing else".to_string()),
         content,
     )
@@ -357,6 +358,7 @@ async fn test_process_content_with_pattern() {
         &runner,
         None,
         Some(pattern),
+        None,
         None,
         content,
     )

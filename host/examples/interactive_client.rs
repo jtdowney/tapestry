@@ -193,6 +193,7 @@ impl ClientState {
                 content: self.content.clone(),
                 model: self.model.clone(),
                 pattern: self.pattern.clone(),
+                context: None,
                 custom_prompt: self.custom_prompt.clone(),
             },
         };
@@ -232,7 +233,10 @@ impl ClientState {
                     break;
                 }
                 Ok(Response {
-                    payload: ResponsePayload::PatternsList { .. } | ResponsePayload::Pong { .. },
+                    payload:
+                        ResponsePayload::PatternsList { .. }
+                        | ResponsePayload::Pong { .. }
+                        | ResponsePayload::ContextsList { .. },
                     ..
                 }) => {}
                 Err(e) => {

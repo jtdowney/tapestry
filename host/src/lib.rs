@@ -22,11 +22,14 @@ pub enum RequestPayload {
     Ping,
     #[serde(rename = "native.listPatterns")]
     ListPatterns,
+    #[serde(rename = "native.listContexts")]
+    ListContexts,
     #[serde(rename = "native.processContent")]
     ProcessContent {
         content: String,
         model: Option<String>,
         pattern: Option<String>,
+        context: Option<String>,
         custom_prompt: Option<String>,
     },
 }
@@ -60,6 +63,8 @@ pub enum ResponsePayload {
     Error { message: String },
     #[serde(rename = "native.patternsList")]
     PatternsList { patterns: Vec<String> },
+    #[serde(rename = "native.contextsList")]
+    ContextsList { contexts: Vec<String> },
 }
 
 #[cfg(test)]
@@ -136,6 +141,80 @@ mod tests {
                 assert_eq!(content, "test content");
                 assert_eq!(model, Some("gpt-4".to_string()));
                 assert_eq!(pattern, Some("summarize".to_string()));
+            }
+            _ => panic!("Expected ProcessContent request"),
+        }
+    }
+
+    #[test]
+    fn test_list_contexts_request_serialization() {
+        let request = Request {
+            id: Uuid::new_v4(),
+            path: None,
+            payload: RequestPayload::ListContexts,
+        };
+
+        let json = serde_json::to_string(&request).unwrap();
+        assert!(json.contains("\"type\":\"native.listContexts\""));
+        assert!(json.contains("\"id\""));
+    }
+
+    #[test]
+    fn test_list_contexts_request_deserialization() {
+        let json = r#"{
+            "id": "550e8400-e29b-41d4-a716-446655440000",
+            "type": "native.listContexts"
+        }"#;
+
+        let request: Request = serde_json::from_str(json).unwrap();
+        assert_eq!(
+            request.id.to_string(),
+            "550e8400-e29b-41d4-a716-446655440000"
+        );
+        assert_matches!(request.payload, RequestPayload::ListContexts);
+    }
+
+    #[test]
+    fn test_contexts_list_response_serialization() {
+        let response = Response {
+            id: Uuid::new_v4(),
+            payload: ResponsePayload::ContextsList {
+                contexts: vec!["context1".to_string(), "context2".to_string()],
+            },
+        };
+
+        let json = serde_json::to_string(&response).unwrap();
+        assert!(json.contains("\"type\":\"native.contextsList\""));
+        assert!(json.contains("\"contexts\""));
+        assert!(json.contains("context1"));
+        assert!(json.contains("context2"));
+    }
+
+    #[test]
+    fn test_process_content_with_context() {
+        let json = r#"{
+            "id": "550e8400-e29b-41d4-a716-446655440000",
+            "path": "/usr/bin/fabric",
+            "type": "native.processContent",
+            "content": "test content",
+            "model": "gpt-4",
+            "pattern": "summarize",
+            "context": "tapestry"
+        }"#;
+
+        let request: Request = serde_json::from_str(json).unwrap();
+        match request.payload {
+            RequestPayload::ProcessContent {
+                content,
+                model,
+                pattern,
+                context,
+                ..
+            } => {
+                assert_eq!(content, "test content");
+                assert_eq!(model, Some("gpt-4".to_string()));
+                assert_eq!(pattern, Some("summarize".to_string()));
+                assert_eq!(context, Some("tapestry".to_string()));
             }
             _ => panic!("Expected ProcessContent request"),
         }

@@ -9,6 +9,7 @@
   import { loadSettings, saveSettings, type Settings } from '$shared/settings';
 
   let availablePatterns = $state<string[]>([]);
+  let availableContexts = $state<string[]>([]);
   let saveStatus = $state<'idle' | 'saving' | 'saved' | 'error'>('idle');
   let connectionStatus = $state<'connected' | 'disconnected' | 'checking'>('checking');
 
@@ -66,10 +67,10 @@
 
   async function loadAvailableOptions(): Promise<void> {
     try {
-      const response = await sendSafely({ type: 'internal.list_patterns' });
-
-      if (response?.type === 'internal.patterns_list') {
-        availablePatterns = response.patterns;
+      // Load patterns
+      const patternsResponse = await sendSafely({ type: 'internal.list_patterns' });
+      if (patternsResponse?.type === 'internal.patterns_list') {
+        availablePatterns = patternsResponse.patterns;
 
         if (settings && settings.visiblePatterns.length === 0 && availablePatterns.length > 0) {
           const recommendedVisible = availablePatterns.filter((pattern) =>
@@ -78,8 +79,14 @@
           await saveSettingsImmediate({ visiblePatterns: recommendedVisible });
         }
       }
+
+      // Load contexts
+      const contextsResponse = await sendSafely({ type: 'internal.list_contexts' });
+      if (contextsResponse?.type === 'internal.contexts_list') {
+        availableContexts = contextsResponse.contexts;
+      }
     } catch (error) {
-      console.error('Failed to load patterns:', error);
+      console.error('Failed to load available options:', error);
     }
   }
 
@@ -216,6 +223,29 @@
               <div class="label">
                 <span class="label-text-alt text-base-content/60">
                   Optional: Specify a model like gpt-4o, claude-3-5-sonnet, etc.
+                </span>
+              </div>
+            </div>
+
+            <div class="form-control mb-5 max-w-md">
+              <label class="label" for="context">
+                <span class="label-text font-medium">Default Context</span>
+              </label>
+              <select
+                id="context"
+                class="select select-bordered w-full"
+                value={settings.fabricContext}
+                onchange={(e) => debouncedSaveSettings({ fabricContext: e.currentTarget.value })}
+              >
+                <option value="">None (no context)</option>
+                {#each availableContexts as context (context)}
+                  <option value={context}>{context}</option>
+                {/each}
+              </select>
+              <div class="label">
+                <span class="label-text-alt text-base-content/60">
+                  Optional: Choose a context to apply to all requests (e.g., tapestry for markdown
+                  output)
                 </span>
               </div>
             </div>

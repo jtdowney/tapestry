@@ -29,6 +29,7 @@ pub enum HandlerError {
 pub trait CommandRunner: Send + Sync {
     async fn fabric_version(&self) -> Result<CommandOutput, HandlerError>;
     async fn list_patterns(&self) -> Result<CommandOutput, HandlerError>;
+    async fn list_contexts(&self) -> Result<CommandOutput, HandlerError>;
     async fn fabric_path(&self) -> Result<&Utf8Path, HandlerError>;
     async fn spawn_process(
         &self,
@@ -89,6 +90,23 @@ impl CommandRunner for FabricCommandRunner {
     async fn list_patterns(&self) -> Result<CommandOutput, HandlerError> {
         let output = FabricCommandBuilder::new(&self.fabric_path)
             .list_patterns()
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .build()
+            .output()
+            .await?;
+
+        Ok(CommandOutput {
+            status: output.status.success(),
+            stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+        })
+    }
+
+    async fn list_contexts(&self) -> Result<CommandOutput, HandlerError> {
+        let output = FabricCommandBuilder::new(&self.fabric_path)
+            .list_contexts()
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -202,10 +220,12 @@ where
     match request.payload {
         RequestPayload::Ping => handle_ping(writer, request_id, &runner).await,
         RequestPayload::ListPatterns => handle_list_patterns(writer, request_id, &runner).await,
+        RequestPayload::ListContexts => handle_list_contexts(writer, request_id, &runner).await,
         RequestPayload::ProcessContent {
             content,
             model,
             pattern,
+            context,
             custom_prompt,
         } => {
             handle_process_content(
@@ -214,6 +234,7 @@ where
                 &runner,
                 model,
                 pattern,
+                context,
                 custom_prompt,
                 content,
             )
@@ -324,6 +345,50 @@ where
     Ok(())
 }
 
+#[doc(hidden)]
+pub async fn handle_list_contexts<T, E, R>(
+    writer: &mut FramedWrite<T, E>,
+    request_id: Uuid,
+    runner: &R,
+) -> Result<(), HandlerError>
+where
+    T: AsyncWrite + Unpin,
+    E: Encoder<Response>,
+    <E as Encoder<Response>>::Error: error::Error + Send + Sync + 'static,
+    R: CommandRunner,
+    HandlerError: From<<E as Encoder<Response>>::Error>,
+{
+    let output = runner.list_contexts().await?;
+
+    if !output.status {
+        writer
+            .send(Response {
+                id: request_id,
+                payload: ResponsePayload::Error {
+                    message: format!("Failed to list contexts: {}", output.stderr),
+                },
+            })
+            .await?;
+        return Ok(());
+    }
+
+    let contexts: Vec<String> = output
+        .stdout
+        .lines()
+        .map(|line| line.trim().to_string())
+        .filter(|line| !line.is_empty())
+        .collect();
+
+    writer
+        .send(Response {
+            id: request_id,
+            payload: ResponsePayload::ContextsList { contexts },
+        })
+        .await?;
+
+    Ok(())
+}
+
 async fn stream_process_responses<T, E>(
     writer: &mut FramedWrite<T, E>,
     request_id: Uuid,
@@ -352,12 +417,14 @@ where
 }
 
 #[doc(hidden)]
+#[allow(clippy::too_many_arguments)]
 pub async fn handle_process_content<T, E, R>(
     writer: &mut FramedWrite<T, E>,
     request_id: Uuid,
     runner: &R,
     model: Option<String>,
     pattern: Option<String>,
+    context: Option<String>,
     custom_prompt: Option<String>,
     content: String,
 ) -> Result<(), HandlerError>
@@ -376,6 +443,10 @@ where
 
     if let Some(model) = model {
         builder = builder.model(model);
+    }
+
+    if let Some(context) = context {
+        builder = builder.context(context);
     }
 
     if let Some(pattern) = pattern {
@@ -457,6 +528,7 @@ mod tests {
         fabric_path: Utf8PathBuf,
         version_response: Option<CommandOutput>,
         patterns_response: Option<CommandOutput>,
+        contexts_response: Option<CommandOutput>,
         process_handles: Arc<TokioMutex<Vec<MockProcessHandle>>>,
     }
 
@@ -466,6 +538,7 @@ mod tests {
                 fabric_path: Utf8PathBuf::from("/usr/bin/fabric"),
                 version_response: None,
                 patterns_response: None,
+                contexts_response: None,
                 process_handles: Arc::new(TokioMutex::new(Vec::new())),
             }
         }
@@ -479,6 +552,11 @@ mod tests {
 
         fn with_patterns_response(mut self, output: CommandOutput) -> Self {
             self.patterns_response = Some(output);
+            self
+        }
+
+        fn with_contexts_response(mut self, output: CommandOutput) -> Self {
+            self.contexts_response = Some(output);
             self
         }
 
@@ -500,6 +578,13 @@ mod tests {
         async fn list_patterns(&self) -> Result<CommandOutput, HandlerError> {
             use std::io;
             self.patterns_response
+                .clone()
+                .ok_or_else(|| HandlerError::Io(io::Error::other("No mock response")))
+        }
+
+        async fn list_contexts(&self) -> Result<CommandOutput, HandlerError> {
+            use std::io;
+            self.contexts_response
                 .clone()
                 .ok_or_else(|| HandlerError::Io(io::Error::other("No mock response")))
         }
@@ -835,6 +920,7 @@ mod tests {
             &runner,
             model,
             pattern,
+            None,
             custom_prompt,
             content,
         )
@@ -906,6 +992,7 @@ mod tests {
             &runner,
             None,
             None,
+            None,
             Some("custom prompt".to_string()),
             content,
         )
@@ -961,6 +1048,122 @@ mod tests {
         let result = Box::new(mock_process).wait().await;
         assert!(result.is_err());
         assert_matches!(result.unwrap_err(), HandlerError::Io(_));
+    }
+
+    #[tokio::test]
+    async fn test_handle_list_contexts_success() {
+        let dir = tempdir().unwrap();
+        let file_path = dir.child("fabric-ai");
+        file_path.touch().unwrap();
+
+        let runner = MockCommandRunner::default().with_contexts_response(CommandOutput {
+            status: true,
+            stdout: "context1\ncontext2\ncontext3\n".to_string(),
+            stderr: String::new(),
+        });
+
+        let test_writer = TestWriter::new();
+        let messages = test_writer.messages.clone();
+        let encoder = TestEncoder::new(messages.clone());
+        let mut writer = FramedWrite::new(test_writer, encoder);
+        let request_id = Uuid::new_v4();
+
+        let result = handle_list_contexts(&mut writer, request_id, &runner).await;
+        assert!(result.is_ok());
+
+        let messages = messages.lock().unwrap();
+        assert_eq!(messages.len(), 1);
+
+        if let ResponsePayload::ContextsList { contexts } = &messages[0].payload {
+            assert_eq!(contexts, &["context1", "context2", "context3"]);
+        } else {
+            panic!("Expected ContextsList response");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_handle_list_contexts_failure() {
+        let dir = tempdir().unwrap();
+        let file_path = dir.child("fabric-ai");
+        file_path.touch().unwrap();
+
+        let runner = MockCommandRunner::default().with_contexts_response(CommandOutput {
+            status: false,
+            stdout: String::new(),
+            stderr: "Failed to list contexts".to_string(),
+        });
+
+        let test_writer = TestWriter::new();
+        let messages = test_writer.messages.clone();
+        let encoder = TestEncoder::new(messages.clone());
+        let mut writer = FramedWrite::new(test_writer, encoder);
+        let request_id = Uuid::new_v4();
+
+        let result = handle_list_contexts(&mut writer, request_id, &runner).await;
+        assert!(result.is_ok());
+
+        let messages = messages.lock().unwrap();
+        assert_eq!(messages.len(), 1);
+
+        if let ResponsePayload::Error { message } = &messages[0].payload {
+            assert!(message.contains("Failed to list contexts"));
+        } else {
+            panic!("Expected Error response");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_handle_process_content_with_context() {
+        let dir = tempdir().unwrap();
+        let file_path = dir.child("fabric-ai");
+        file_path.touch().unwrap();
+
+        let stdout_lines = vec![
+            "Processing with context line 1\n".to_string(),
+            "Processing with context line 2\n".to_string(),
+            "Done\n".to_string(),
+        ];
+
+        let process_handle = MockProcessHandle::new(stdout_lines, Some(0));
+        let runner = MockCommandRunner::default()
+            .with_process_handle(process_handle)
+            .await;
+
+        let test_writer = TestWriter::new();
+        let messages = test_writer.messages.clone();
+        let encoder = TestEncoder::new(messages.clone());
+        let mut writer = FramedWrite::new(test_writer, encoder);
+
+        let request_id = Uuid::new_v4();
+        let model = Some("gpt-4".to_string());
+        let pattern = Some("summarize".to_string());
+        let context = Some("tapestry".to_string());
+        let custom_prompt = None;
+        let content = "Test content to process with context".to_string();
+
+        let result = handle_process_content(
+            &mut writer,
+            request_id,
+            &runner,
+            model,
+            pattern,
+            context,
+            custom_prompt,
+            content,
+        )
+        .await;
+        assert!(result.is_ok());
+
+        let messages = messages.lock().unwrap();
+        assert_eq!(messages.len(), 4);
+
+        assert_matches!(&messages[0].payload, ResponsePayload::Content { content } if content == "Processing with context line 1\n");
+        assert_matches!(&messages[1].payload, ResponsePayload::Content { content } if content == "Processing with context line 2\n");
+        assert_matches!(&messages[2].payload, ResponsePayload::Content { content } if content == "Done\n");
+        assert_matches!(
+            &messages[3].payload,
+            ResponsePayload::Done { exit_code: Some(0) }
+        );
     }
 
     impl MockProcessHandle {
