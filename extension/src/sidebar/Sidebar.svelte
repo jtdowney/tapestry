@@ -4,6 +4,8 @@
 
   import MarkdownOutput from './components/MarkdownOutput.svelte';
   import PatternSelector from './components/PatternSelector.svelte';
+  import type { ProcessingState, PatternsState, UISettings } from './types';
+  import { isProcessing, hasOutput, getOutput, getRequestId } from './types';
 
   import ConnectionStatus from '$shared/components/ConnectionStatus.svelte';
   import { sendSafely } from '$shared/connection';
@@ -12,35 +14,43 @@
   import { generateRequestId } from '$shared/requestId';
   import { loadSettings, saveSettings, watchSettings } from '$shared/settings';
 
-  let selectedPattern = $state<string>('Custom');
-  let customPrompt = $state<string>('');
-  let output = $state<string>('');
-  let outputError = $state<string>('');
-  let processing = $state<boolean>(false);
-  let cancelling = $state<boolean>(false);
-  let currentRequestId = $state<string | null>(null);
-  let patterns = $state<string[]>(['Custom']);
-  let loadingPatterns = $state<boolean>(false);
-  let showCustomPrompt = $state<boolean>(true);
-  let renderAsMarkdown = $state<boolean>(true);
-  let localRenderAsMarkdown = $state<boolean>(true);
-  let sendRawContent = $state<boolean>(false);
+  let processingState = $state<ProcessingState>({ type: 'idle' });
+  let patternsState = $state<PatternsState>({ type: 'loading' });
+  let uiSettings = $state<UISettings>({
+    selectedPattern: 'Custom',
+    customPrompt: '',
+    showCustomPrompt: true,
+    renderAsMarkdown: true,
+    localRenderAsMarkdown: true,
+    sendRawContent: false,
+  });
 
-  const isCustomPattern = $derived(selectedPattern === 'Custom');
+  const isCustomPattern = $derived(uiSettings.selectedPattern === 'Custom');
+  const availablePatterns = $derived(
+    patternsState.type === 'loaded' ? patternsState.patterns : ['Custom']
+  );
+  const currentOutput = $derived(getOutput(processingState));
+  const isCurrentlyProcessing = $derived(isProcessing(processingState));
 
   onMount(() => {
     (async () => {
       const settings = await loadSettings();
-      showCustomPrompt = settings.showCustomPrompt;
-      renderAsMarkdown = settings.renderAsMarkdown;
-      localRenderAsMarkdown = settings.renderAsMarkdown;
-      sendRawContent = settings.sendRawContent;
+      uiSettings = {
+        ...uiSettings,
+        showCustomPrompt: settings.showCustomPrompt,
+        renderAsMarkdown: settings.renderAsMarkdown,
+        localRenderAsMarkdown: settings.renderAsMarkdown,
+        sendRawContent: settings.sendRawContent,
+      };
 
       try {
-        loadingPatterns = true;
+        patternsState = { type: 'loading' };
         const response = await sendSafely({ type: 'internal.listPatterns' });
         if (!response) {
-          console.warn('Unable to load patterns: extension communication failed');
+          patternsState = {
+            type: 'error',
+            message: 'Unable to load patterns: extension communication failed',
+          };
           return;
         }
 
@@ -51,44 +61,54 @@
           const filteredPatterns = allPatterns.filter((pattern) =>
             visiblePatterns.includes(pattern)
           );
-          patterns = showCustomPrompt ? ['Custom', ...filteredPatterns] : filteredPatterns;
+          const patterns = uiSettings.showCustomPrompt
+            ? ['Custom', ...filteredPatterns]
+            : filteredPatterns;
+          patternsState = { type: 'loaded', patterns };
 
           if (settings.defaultPattern && filteredPatterns.includes(settings.defaultPattern)) {
-            selectedPattern = settings.defaultPattern;
-          } else if (!showCustomPrompt && selectedPattern === 'Custom') {
-            selectedPattern = filteredPatterns.length > 0 ? filteredPatterns[0]! : '';
+            uiSettings.selectedPattern = settings.defaultPattern;
+          } else if (!uiSettings.showCustomPrompt && uiSettings.selectedPattern === 'Custom') {
+            uiSettings.selectedPattern = filteredPatterns.length > 0 ? filteredPatterns[0]! : '';
           } else if (!settings.defaultPattern) {
             const firstRecommended = RECOMMENDED_PATTERNS.find((pattern) =>
               filteredPatterns.includes(pattern)
             );
             if (firstRecommended) {
-              selectedPattern = firstRecommended;
+              uiSettings.selectedPattern = firstRecommended;
             }
           }
         }
       } catch (error) {
         console.error('Failed to load patterns:', error);
-      } finally {
-        loadingPatterns = false;
+        patternsState = { type: 'error', message: 'Failed to load patterns' };
       }
     })();
 
     const handleMessage = (message: any) => {
-      if (message.id && message.id !== currentRequestId) {
+      const requestId = getRequestId(processingState);
+      if (message.id && message.id !== requestId) {
         return;
       }
 
       if (message.type === 'internal.processingContent') {
-        output += message.content;
+        if (processingState.type === 'processing' || processingState.type === 'cancelling') {
+          processingState = {
+            ...processingState,
+            output: processingState.output + message.content,
+          };
+        }
       } else if (message.type === 'internal.processingDone') {
-        processing = false;
-        cancelling = false;
-        currentRequestId = null;
+        if (processingState.type === 'processing' || processingState.type === 'cancelling') {
+          processingState = { type: 'completed', output: processingState.output };
+        }
       } else if (message.type === 'internal.processingError') {
-        outputError = message.message;
-        processing = false;
-        cancelling = false;
-        currentRequestId = null;
+        const currentOutput = getOutput(processingState);
+        processingState = {
+          type: 'error',
+          message: message.message,
+          output: currentOutput || undefined,
+        };
       }
     };
 
@@ -100,46 +120,56 @@
     ) => {
       if (area === 'local') {
         if (changes.showCustomPrompt && changes.showCustomPrompt.newValue !== undefined) {
-          showCustomPrompt = changes.showCustomPrompt.newValue;
+          uiSettings.showCustomPrompt = changes.showCustomPrompt.newValue;
 
-          if (showCustomPrompt && !patterns.includes('Custom')) {
-            patterns = ['Custom', ...patterns.filter((p) => p !== 'Custom')];
-          } else if (!showCustomPrompt && patterns.includes('Custom')) {
-            patterns = patterns.filter((p) => p !== 'Custom');
+          if (patternsState.type === 'loaded') {
+            let patterns = patternsState.patterns;
+            if (uiSettings.showCustomPrompt && !patterns.includes('Custom')) {
+              patterns = ['Custom', ...patterns.filter((p) => p !== 'Custom')];
+            } else if (!uiSettings.showCustomPrompt && patterns.includes('Custom')) {
+              patterns = patterns.filter((p) => p !== 'Custom');
 
-            if (selectedPattern === 'Custom') {
-              selectedPattern = patterns.length > 0 ? patterns[0]! : '';
+              if (uiSettings.selectedPattern === 'Custom') {
+                uiSettings.selectedPattern = patterns.length > 0 ? patterns[0]! : '';
+              }
             }
+            patternsState = { type: 'loaded', patterns };
           }
         }
 
         if (changes.renderAsMarkdown && changes.renderAsMarkdown.newValue !== undefined) {
-          renderAsMarkdown = changes.renderAsMarkdown.newValue;
-          localRenderAsMarkdown = changes.renderAsMarkdown.newValue;
+          uiSettings.renderAsMarkdown = changes.renderAsMarkdown.newValue;
+          uiSettings.localRenderAsMarkdown = changes.renderAsMarkdown.newValue;
         }
 
         if (changes.sendRawContent && changes.sendRawContent.newValue !== undefined) {
-          sendRawContent = changes.sendRawContent.newValue;
+          uiSettings.sendRawContent = changes.sendRawContent.newValue;
         }
 
         if (changes.visiblePatterns && changes.visiblePatterns.newValue !== undefined) {
           const visiblePatterns = changes.visiblePatterns.newValue;
 
-          const basePatterns = showCustomPrompt ? ['Custom'] : [];
-          patterns = [...basePatterns, ...visiblePatterns];
+          const basePatterns = uiSettings.showCustomPrompt ? ['Custom'] : [];
+          const patterns = [...basePatterns, ...visiblePatterns];
+          patternsState = { type: 'loaded', patterns };
 
-          if (selectedPattern && !patterns.includes(selectedPattern)) {
+          if (uiSettings.selectedPattern && !patterns.includes(uiSettings.selectedPattern)) {
             const firstRecommended = RECOMMENDED_PATTERNS.find((pattern) =>
               visiblePatterns.includes(pattern)
             );
-            selectedPattern = firstRecommended || (patterns.length > 0 ? patterns[0]! : '');
+            uiSettings.selectedPattern =
+              firstRecommended || (patterns.length > 0 ? patterns[0]! : '');
           }
         }
 
         if (changes.defaultPattern && changes.defaultPattern.newValue !== undefined) {
           const defaultPattern = changes.defaultPattern.newValue;
-          if (defaultPattern && patterns.includes(defaultPattern)) {
-            selectedPattern = defaultPattern;
+          if (
+            defaultPattern &&
+            patternsState.type === 'loaded' &&
+            patternsState.patterns.includes(defaultPattern)
+          ) {
+            uiSettings.selectedPattern = defaultPattern;
           }
         }
       }
@@ -159,20 +189,20 @@
 
   async function handleRawContentToggle(checked: boolean): Promise<void> {
     try {
-      sendRawContent = checked;
+      uiSettings.sendRawContent = checked;
       await saveSettings({ sendRawContent: checked });
     } catch (error) {
       console.error('Failed to save raw content setting:', error);
-
-      sendRawContent = !checked;
+      uiSettings.sendRawContent = !checked;
     }
   }
 
   async function handleCancel(): Promise<void> {
-    if (!processing || !currentRequestId || cancelling) return;
+    if (processingState.type !== 'processing') return;
 
-    const idToCancel = currentRequestId;
-    cancelling = true;
+    const idToCancel = processingState.requestId;
+    const currentOutput = processingState.output;
+    processingState = { type: 'cancelling', requestId: idToCancel, output: currentOutput };
 
     try {
       const response = await sendSafely({
@@ -181,70 +211,76 @@
       });
 
       if (response?.type === 'internal.processingCancelled' && response.id === idToCancel) {
-        outputError = 'Process was cancelled';
-        processing = false;
-        currentRequestId = null;
+        processingState = {
+          type: 'error',
+          message: 'Process was cancelled',
+          output: currentOutput,
+        };
       } else if (response?.type === 'internal.processingError') {
         if (response.message.includes('not found or already completed')) {
-          processing = false;
-          currentRequestId = null;
+          processingState = { type: 'completed', output: currentOutput };
         } else {
           console.warn('Cancel request failed:', response.message);
-          outputError = `Failed to cancel: ${response.message}`;
+          processingState = {
+            type: 'error',
+            message: `Failed to cancel: ${response.message}`,
+            output: currentOutput,
+          };
         }
       }
     } catch (error) {
       console.error('Failed to cancel process:', error);
-      outputError = 'An error occurred while trying to cancel the process.';
-    } finally {
-      cancelling = false;
+      processingState = {
+        type: 'error',
+        message: 'An error occurred while trying to cancel the process.',
+        output: currentOutput,
+      };
     }
   }
 
   async function handleGo(): Promise<void> {
-    if (processing || (isCustomPattern && !customPrompt.trim())) return;
+    if (isCurrentlyProcessing || (isCustomPattern && !uiSettings.customPrompt.trim())) return;
 
     try {
-      processing = true;
-      cancelling = false;
-      currentRequestId = generateRequestId();
-      output = '';
-      outputError = '';
-      localRenderAsMarkdown = renderAsMarkdown;
+      const requestId = generateRequestId();
+      processingState = { type: 'capturing', requestId };
+      uiSettings.localRenderAsMarkdown = uiSettings.renderAsMarkdown;
 
       const pageResponse = await sendSafely({
         type: 'internal.capturePage',
-        rawContent: sendRawContent,
+        rawContent: uiSettings.sendRawContent,
       });
       if (!pageResponse) {
-        outputError = 'Unable to communicate with extension background';
-        processing = false;
-        cancelling = false;
+        processingState = {
+          type: 'error',
+          message: 'Unable to communicate with extension background',
+        };
         return;
       }
 
       if (pageResponse.type === 'internal.processingError') {
-        outputError = pageResponse.message;
-        processing = false;
-        cancelling = false;
+        processingState = { type: 'error', message: pageResponse.message };
         return;
       }
 
       if (pageResponse.type === 'internal.pageContent') {
+        processingState = { type: 'processing', requestId, output: '' };
+
         const processRequest = InternalRequestSchema.parse({
           type: 'internal.processContent',
-          id: currentRequestId!,
+          id: requestId,
           content: pageResponse.content,
-          pattern: isCustomPattern ? undefined : selectedPattern,
-          customPrompt: isCustomPattern ? customPrompt : undefined,
+          pattern: isCustomPattern ? undefined : uiSettings.selectedPattern,
+          customPrompt: isCustomPattern ? uiSettings.customPrompt : undefined,
         });
 
         sendSafely(processRequest);
       }
     } catch (error) {
-      outputError = error instanceof Error ? error.message : 'Failed to process content';
-      processing = false;
-      cancelling = false;
+      processingState = {
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Failed to process content',
+      };
     }
   }
 </script>
@@ -254,16 +290,16 @@
     <div class="flex items-center justify-between">
       <h1 class="text-base font-semibold text-base-content">Tapestry</h1>
       <div class="flex items-center gap-2">
-        {#if output}
+        {#if hasOutput(processingState)}
           <div
             class="tooltip tooltip-bottom"
-            data-tip={localRenderAsMarkdown ? 'Show raw text' : 'Show as markdown'}
+            data-tip={uiSettings.localRenderAsMarkdown ? 'Show raw text' : 'Show as markdown'}
           >
             <button
-              onclick={() => (localRenderAsMarkdown = !localRenderAsMarkdown)}
+              onclick={() => (uiSettings.localRenderAsMarkdown = !uiSettings.localRenderAsMarkdown)}
               class="btn btn-ghost btn-xs p-1 min-h-0 h-auto"
             >
-              {#if localRenderAsMarkdown}
+              {#if uiSettings.localRenderAsMarkdown}
                 <Code size={14} />
               {:else}
                 <FileText size={14} />
@@ -284,16 +320,16 @@
   <div class="flex-none p-2 border-b border-base-200">
     <div class="flex gap-2 items-center">
       <PatternSelector
-        bind:value={selectedPattern}
-        {patterns}
-        loading={loadingPatterns}
+        bind:value={uiSettings.selectedPattern}
+        patterns={availablePatterns}
+        loading={patternsState.type === 'loading'}
         class="flex-1 text-sm"
       />
 
       <div class="tooltip tooltip-bottom" data-tip="Send page as raw HTML instead of markdown">
         <label class="label cursor-pointer gap-2 py-1 px-2 rounded hover:bg-base-200">
           <span class="label-text text-xs flex items-center gap-1">
-            {#if sendRawContent}
+            {#if uiSettings.sendRawContent}
               <Code2 size={12} />
             {:else}
               <FileText size={12} />
@@ -303,26 +339,26 @@
           <input
             type="checkbox"
             class="toggle toggle-xs toggle-primary"
-            checked={sendRawContent}
+            checked={uiSettings.sendRawContent}
             onchange={(e) => handleRawContentToggle(e.currentTarget.checked)}
           />
         </label>
       </div>
 
-      {#if processing}
+      {#if processingState.type === 'processing' || processingState.type === 'cancelling'}
         <button
           onclick={handleCancel}
-          disabled={cancelling}
+          disabled={processingState.type === 'cancelling'}
           class="btn btn-error text-sm"
-          class:loading={cancelling}
+          class:loading={processingState.type === 'cancelling'}
         >
           <X size={16} />
-          {cancelling ? 'Cancelling...' : 'Cancel'}
+          {processingState.type === 'cancelling' ? 'Cancelling...' : 'Cancel'}
         </button>
       {:else}
         <button
           onclick={handleGo}
-          disabled={isCustomPattern && !customPrompt.trim()}
+          disabled={isCustomPattern && !uiSettings.customPrompt.trim()}
           class="btn btn-primary text-sm"
         >
           Go
@@ -330,11 +366,11 @@
       {/if}
     </div>
 
-    {#if isCustomPattern && showCustomPrompt}
+    {#if isCustomPattern && uiSettings.showCustomPrompt}
       <div class="mt-2">
         <input
           type="text"
-          bind:value={customPrompt}
+          bind:value={uiSettings.customPrompt}
           placeholder="Enter your custom prompt..."
           class="input input-bordered w-full text-sm"
         />
@@ -345,16 +381,16 @@
   <div class="flex-1 flex flex-col min-h-0">
     <div class="flex-1 p-2 bg-base-200">
       <div class="bg-base-300 rounded-lg h-full p-2 overflow-y-auto">
-        {#if outputError}
-          <div class="text-sm text-error">{outputError}</div>
-        {:else if output}
-          {#if localRenderAsMarkdown}
-            <MarkdownOutput content={output} />
+        {#if processingState.type === 'error'}
+          <div class="text-sm text-error">{processingState.message}</div>
+        {:else if hasOutput(processingState)}
+          {#if uiSettings.localRenderAsMarkdown}
+            <MarkdownOutput content={currentOutput} />
           {:else}
             <pre
-              class="text-sm text-base-content whitespace-pre-wrap font-mono overflow-y-auto max-w-none">{output}</pre>
+              class="text-sm text-base-content whitespace-pre-wrap font-mono overflow-y-auto max-w-none">{currentOutput}</pre>
           {/if}
-        {:else if processing}
+        {:else if processingState.type === 'capturing' || processingState.type === 'processing'}
           <div class="flex items-center gap-2 text-sm text-base-content/60">
             <span class="loading loading-spinner loading-md text-primary"></span>
             <span class="italic">Processing current page...</span>

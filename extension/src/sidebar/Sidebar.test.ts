@@ -252,10 +252,40 @@ describe('Sidebar Component', () => {
 
   describe('Message Handling', () => {
     it('should handle processing_content messages', async () => {
-      const { container } = render(Sidebar);
+      const { container, getByRole } = render(Sidebar);
+
+      // Wait for component to load and set up with a non-custom pattern
+      await waitFor(() => {
+        const select = container.querySelector('select') as HTMLSelectElement;
+        expect(select?.value).toBe('summarize');
+      });
+
+      // Mock page capture response
+      const { sendSafely } = await import('$shared/connection');
+      vi.mocked(sendSafely).mockResolvedValueOnce({
+        type: 'internal.pageContent',
+        content: 'Test page content',
+      });
+
+      // Mock processContent to return undefined to keep processing
+      vi.mocked(sendSafely).mockResolvedValueOnce(undefined);
+
+      // Click Go to start processing
+      const goButton = getByRole('button', { name: /go/i });
+      await fireEvent.click(goButton);
+
+      // Now send processing content message with matching ID
+      // We need to extract the request ID that was generated
+      const calls = vi.mocked(sendSafely).mock.calls;
+      const processCall = calls.find((call) => call[0]?.type === 'internal.processContent');
+      const requestId = (processCall?.[0] as any)?.id;
 
       messageListeners.forEach((listener) =>
-        listener({ type: 'internal.processingContent', content: 'New content chunk' })
+        listener({
+          type: 'internal.processingContent',
+          id: requestId,
+          content: 'New content chunk',
+        })
       );
 
       await waitFor(() => {
@@ -273,10 +303,27 @@ describe('Sidebar Component', () => {
         expect(getByRole('button', { name: /go/i })).not.toBeDisabled();
       });
 
+      // Mock page capture response
+      const { sendSafely } = await import('$shared/connection');
+      vi.mocked(sendSafely).mockResolvedValueOnce({
+        type: 'internal.pageContent',
+        content: 'Test page content',
+      });
+
+      // Mock processContent to return undefined to keep processing
+      vi.mocked(sendSafely).mockResolvedValueOnce(undefined);
+
       const goButton = getByRole('button', { name: /go/i });
       await fireEvent.click(goButton);
 
-      messageListeners.forEach((listener) => listener({ type: 'internal.processingDone' }));
+      // Extract the request ID
+      const calls = vi.mocked(sendSafely).mock.calls;
+      const processCall = calls.find((call) => call[0]?.type === 'internal.processContent');
+      const requestId = (processCall?.[0] as any)?.id;
+
+      messageListeners.forEach((listener) =>
+        listener({ type: 'internal.processingDone', id: requestId })
+      );
 
       await waitFor(() => {
         expect(getByRole('button', { name: /go/i })).not.toBeDisabled();
@@ -443,17 +490,44 @@ describe('Sidebar Component', () => {
         fabricPath: '',
         fabricModel: '',
         fabricContext: '',
-        defaultPattern: '',
-        visiblePatterns: [],
+        defaultPattern: 'summarize',
+        visiblePatterns: ['summarize'],
         showCustomPrompt: true,
         renderAsMarkdown: true,
         sendRawContent: false,
       });
 
-      const { container } = render(Sidebar);
+      const { sendSafely } = await import('$shared/connection');
+      vi.mocked(sendSafely).mockResolvedValueOnce({
+        type: 'internal.patternsList',
+        patterns: ['summarize'],
+      });
+
+      const { container, getByRole } = render(Sidebar);
+
+      // Wait for patterns to load
+      await waitFor(() => {
+        const select = container.querySelector('select') as HTMLSelectElement;
+        expect(select?.value).toBe('summarize');
+      });
+
+      // Mock page capture and start processing
+      vi.mocked(sendSafely).mockResolvedValueOnce({
+        type: 'internal.pageContent',
+        content: 'Test page content',
+      });
+      vi.mocked(sendSafely).mockResolvedValueOnce(undefined);
+
+      const goButton = getByRole('button', { name: /go/i });
+      await fireEvent.click(goButton);
+
+      // Extract request ID and send content
+      const calls = vi.mocked(sendSafely).mock.calls;
+      const processCall = calls.find((call) => call[0]?.type === 'internal.processContent');
+      const requestId = (processCall?.[0] as any)?.id;
 
       messageListeners.forEach((listener) =>
-        listener({ type: 'internal.processingContent', content: '# Test Header' })
+        listener({ type: 'internal.processingContent', id: requestId, content: '# Test Header' })
       );
 
       await waitFor(() => {
@@ -468,17 +542,44 @@ describe('Sidebar Component', () => {
         fabricPath: '',
         fabricModel: '',
         fabricContext: '',
-        defaultPattern: '',
-        visiblePatterns: [],
+        defaultPattern: 'summarize',
+        visiblePatterns: ['summarize'],
         showCustomPrompt: true,
         renderAsMarkdown: false,
         sendRawContent: false,
       });
 
-      const { container } = render(Sidebar);
+      const { sendSafely } = await import('$shared/connection');
+      vi.mocked(sendSafely).mockResolvedValueOnce({
+        type: 'internal.patternsList',
+        patterns: ['summarize'],
+      });
+
+      const { container, getByRole } = render(Sidebar);
+
+      // Wait for patterns to load
+      await waitFor(() => {
+        const select = container.querySelector('select') as HTMLSelectElement;
+        expect(select?.value).toBe('summarize');
+      });
+
+      // Mock page capture and start processing
+      vi.mocked(sendSafely).mockResolvedValueOnce({
+        type: 'internal.pageContent',
+        content: 'Test page content',
+      });
+      vi.mocked(sendSafely).mockResolvedValueOnce(undefined);
+
+      const goButton = getByRole('button', { name: /go/i });
+      await fireEvent.click(goButton);
+
+      // Extract request ID and send content
+      const calls = vi.mocked(sendSafely).mock.calls;
+      const processCall = calls.find((call) => call[0]?.type === 'internal.processContent');
+      const requestId = (processCall?.[0] as any)?.id;
 
       messageListeners.forEach((listener) =>
-        listener({ type: 'internal.processingContent', content: '# Test Header' })
+        listener({ type: 'internal.processingContent', id: requestId, content: '# Test Header' })
       );
 
       await waitFor(() => {
