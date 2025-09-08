@@ -383,6 +383,11 @@
       <div class="bg-base-300 rounded-lg h-full p-2 overflow-y-auto">
         {#if processingState.type === 'error'}
           <div class="text-sm text-error">{processingState.message}</div>
+        {:else if processingState.type === 'capturing' || (processingState.type === 'processing' && !currentOutput)}
+          <div class="flex items-center gap-2 text-sm text-base-content/60">
+            <span class="loading loading-spinner loading-md text-primary"></span>
+            <span class="italic">Processing current page...</span>
+          </div>
         {:else if hasOutput(processingState)}
           {#if uiSettings.localRenderAsMarkdown}
             <MarkdownOutput content={currentOutput} />
@@ -390,11 +395,6 @@
             <pre
               class="text-sm text-base-content whitespace-pre-wrap font-mono overflow-y-auto max-w-none">{currentOutput}</pre>
           {/if}
-        {:else if processingState.type === 'capturing' || processingState.type === 'processing'}
-          <div class="flex items-center gap-2 text-sm text-base-content/60">
-            <span class="loading loading-spinner loading-md text-primary"></span>
-            <span class="italic">Processing current page...</span>
-          </div>
         {:else}
           <div class="text-sm text-base-content/60 italic">
             Click "Go" to process the current page with Fabric
