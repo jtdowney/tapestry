@@ -233,6 +233,17 @@ impl ClientState {
                     break;
                 }
                 Ok(Response {
+                    payload: ResponsePayload::Cancelled { request_id },
+                    ..
+                }) => {
+                    println!(
+                        "{} Process {} was cancelled",
+                        "⚠ Cancelled:".yellow(),
+                        request_id
+                    );
+                    break;
+                }
+                Ok(Response {
                     payload:
                         ResponsePayload::PatternsList { .. }
                         | ResponsePayload::Pong { .. }

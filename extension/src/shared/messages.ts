@@ -16,12 +16,17 @@ export const InternalRequestSchema = z.discriminatedUnion('type', [
   }),
   z.object({
     type: z.literal('internal.processContent'),
+    id: z.uuid(),
     content: z.string(),
     pattern: z.optional(z.string()),
     customPrompt: z.optional(z.string()),
   }),
   z.object({
     type: z.literal('internal.reconnectNative'),
+  }),
+  z.object({
+    type: z.literal('internal.cancelProcess'),
+    requestId: z.uuid(),
   }),
 ]);
 
@@ -44,15 +49,22 @@ export const InternalResponseSchema = z.discriminatedUnion('type', [
   }),
   z.object({
     type: z.literal('internal.processingContent'),
+    id: z.uuid(),
     content: z.string(),
   }),
   z.object({
     type: z.literal('internal.processingDone'),
+    id: z.uuid(),
     exitCode: z.nullable(z.number()),
   }),
   z.object({
     type: z.literal('internal.processingError'),
+    id: z.optional(z.uuid()),
     message: z.string(),
+  }),
+  z.object({
+    type: z.literal('internal.processingCancelled'),
+    id: z.uuid(),
   }),
 ]);
 

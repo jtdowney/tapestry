@@ -33,6 +33,11 @@ export const NativeResponseSchema = z.discriminatedUnion('type', [
     id: z.uuid(),
     message: z.string(),
   }),
+  z.object({
+    type: z.literal('native.cancelled'),
+    id: z.uuid(),
+    requestId: z.uuid(),
+  }),
 ]);
 
 export type NativeResponse = z.infer<typeof NativeResponseSchema>;
@@ -62,6 +67,12 @@ export const NativeRequestSchema = z.discriminatedUnion('type', [
     context: z.optional(z.string()),
     path: z.optional(z.string()),
     customPrompt: z.optional(z.string()),
+  }),
+  z.object({
+    type: z.literal('native.cancelProcess'),
+    id: z.uuid(),
+    requestId: z.uuid(),
+    path: z.optional(z.string()),
   }),
 ]);
 

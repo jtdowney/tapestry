@@ -25,6 +25,7 @@ describe('Extension Internal Message Schema', () => {
     it('should validate internal.processContent request', () => {
       const request = {
         type: 'internal.processContent',
+        id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
         content: 'test content',
         pattern: 'test-pattern',
         customPrompt: 'test prompt',
@@ -77,6 +78,7 @@ describe('Extension Internal Message Schema', () => {
     it('should validate internal.processingContent response', () => {
       const response = {
         type: 'internal.processingContent',
+        id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
         content: 'processing content',
       };
       const result = InternalResponseSchema.safeParse(response);
@@ -86,6 +88,7 @@ describe('Extension Internal Message Schema', () => {
     it('should validate internal.processingDone response', () => {
       const response = {
         type: 'internal.processingDone',
+        id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
         exitCode: 0,
       };
       const result = InternalResponseSchema.safeParse(response);
@@ -95,6 +98,7 @@ describe('Extension Internal Message Schema', () => {
     it('should validate internal.processingError response', () => {
       const response = {
         type: 'internal.processingError',
+        id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
         message: 'error message',
       };
       const result = InternalResponseSchema.safeParse(response);

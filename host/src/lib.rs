@@ -32,6 +32,11 @@ pub enum RequestPayload {
         context: Option<String>,
         custom_prompt: Option<String>,
     },
+    #[serde(rename = "native.cancelProcess")]
+    CancelProcess {
+        #[serde(rename = "requestId")]
+        request_id: Uuid,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -65,6 +70,11 @@ pub enum ResponsePayload {
     PatternsList { patterns: Vec<String> },
     #[serde(rename = "native.contextsList")]
     ContextsList { contexts: Vec<String> },
+    #[serde(rename = "native.cancelled")]
+    Cancelled {
+        #[serde(rename = "requestId")]
+        request_id: Uuid,
+    },
 }
 
 #[cfg(test)]

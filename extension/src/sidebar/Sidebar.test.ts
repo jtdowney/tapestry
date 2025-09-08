@@ -36,14 +36,14 @@ describe('Sidebar Component', () => {
 
     mockSendMessage = vi.fn().mockResolvedValue({
       type: 'internal.patternsList',
-      patterns: ['pattern1', 'pattern2'],
+      patterns: ['summarize', 'pattern1', 'pattern2'],
     });
 
     const { sendSafely, getConnectionStatus, addConnectionListener, removeConnectionListener } =
       await import('$shared/connection');
     vi.mocked(sendSafely).mockResolvedValue({
       type: 'internal.patternsList',
-      patterns: ['pattern1', 'pattern2'],
+      patterns: ['summarize', 'pattern1', 'pattern2'],
     });
     vi.mocked(getConnectionStatus).mockResolvedValue('connected');
     vi.mocked(addConnectionListener).mockImplementation(() => {});
@@ -54,8 +54,8 @@ describe('Sidebar Component', () => {
       fabricPath: '',
       fabricModel: '',
       fabricContext: '',
-      defaultPattern: '',
-      visiblePatterns: ['pattern1', 'pattern2'],
+      defaultPattern: 'summarize',
+      visiblePatterns: ['summarize', 'pattern1', 'pattern2'],
       showCustomPrompt: true,
       renderAsMarkdown: true,
       sendRawContent: false,
@@ -483,6 +483,267 @@ describe('Sidebar Component', () => {
 
       await waitFor(() => {
         expect(container.innerHTML).toContain('# Test Header');
+      });
+    });
+
+    it('should show cancel button when processing', async () => {
+      const { container } = render(Sidebar);
+
+      // Wait for component to fully load patterns and select the default pattern
+      await waitFor(
+        () => {
+          const select = container.querySelector('select') as HTMLSelectElement;
+          expect(select).toBeTruthy();
+
+          // Wait for patterns to be loaded and default pattern to be selected
+          const options = Array.from(select.options);
+          const hasSummarize = options.some((option) => option.value === 'summarize');
+          expect(hasSummarize).toBe(true);
+
+          // Component should automatically select 'summarize' as the default pattern
+          expect(select.value).toBe('summarize');
+        },
+        { timeout: 3000 }
+      );
+
+      // The Go button should be enabled since summarize is a valid non-custom pattern
+      await waitFor(
+        () => {
+          const buttons = Array.from(container.querySelectorAll('button'));
+          const goButton = buttons.find((btn) => btn.textContent?.includes('Go'));
+          expect(goButton).toBeTruthy();
+          expect(goButton?.hasAttribute('disabled')).toBe(false);
+        },
+        { timeout: 3000 }
+      );
+
+      // Mock the page capture response to trigger processing state
+      const mockSendSafely = vi.mocked((await import('$shared/connection')).sendSafely);
+      mockSendSafely.mockResolvedValueOnce({
+        type: 'internal.pageContent',
+        content: 'Test page content',
+      });
+
+      // Mock the second call (processContent) to return undefined to keep processing
+      mockSendSafely.mockResolvedValueOnce(undefined);
+
+      // Click Go to start processing
+      const buttons = Array.from(container.querySelectorAll('button'));
+      const goButton = buttons.find((btn) => btn.textContent?.includes('Go'));
+      await fireEvent.click(goButton!);
+
+      await waitFor(() => {
+        // Should show cancel button now that processing has started
+        const buttonsAfter = Array.from(container.querySelectorAll('button'));
+        const cancelButton = buttonsAfter.find((btn) => btn.textContent?.includes('Cancel'));
+        expect(cancelButton).toBeTruthy();
+        expect(cancelButton?.textContent).toContain('Cancel');
+
+        // Go button should not be visible during processing
+        const goButtonAfter = buttonsAfter.find((btn) => btn.textContent?.includes('Go'));
+        expect(goButtonAfter).toBeFalsy();
+      });
+    });
+
+    it('should handle cancel button click', async () => {
+      const mockSendSafely = vi.mocked((await import('$shared/connection')).sendSafely);
+
+      const { container } = render(Sidebar);
+
+      // Wait for component to fully load patterns and select the default pattern
+      await waitFor(
+        () => {
+          const select = container.querySelector('select') as HTMLSelectElement;
+          expect(select).toBeTruthy();
+          expect(select.value).toBe('summarize');
+        },
+        { timeout: 3000 }
+      );
+
+      // The Go button should be enabled
+      await waitFor(
+        () => {
+          const buttons = Array.from(container.querySelectorAll('button'));
+          const goButton = buttons.find((btn) => btn.textContent?.includes('Go'));
+          expect(goButton).toBeTruthy();
+          expect(goButton?.hasAttribute('disabled')).toBe(false);
+        },
+        { timeout: 3000 }
+      );
+
+      // Mock page capture response first
+      mockSendSafely.mockResolvedValueOnce({
+        type: 'internal.pageContent',
+        content: 'Test page content',
+      });
+
+      // Mock processContent to return undefined to keep processing
+      mockSendSafely.mockResolvedValueOnce(undefined);
+
+      // Mock cancel response
+      mockSendSafely.mockResolvedValueOnce({
+        type: 'internal.processingCancelled',
+        id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+      });
+
+      // Click Go to start processing
+      const buttons = Array.from(container.querySelectorAll('button'));
+      const goButton = buttons.find((btn) => btn.textContent?.includes('Go'));
+      await fireEvent.click(goButton!);
+
+      await waitFor(async () => {
+        const buttonsAfter = Array.from(container.querySelectorAll('button'));
+        const cancelButton = buttonsAfter.find((btn) => btn.textContent?.includes('Cancel'));
+        expect(cancelButton).toBeTruthy();
+
+        // Click the cancel button
+        await fireEvent.click(cancelButton!);
+
+        // Should call sendSafely with cancel request
+        expect(mockSendSafely).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: 'internal.cancelProcess',
+            requestId: expect.any(String),
+          })
+        );
+      });
+    });
+
+    it('should update UI state when cancel succeeds', async () => {
+      const mockSendSafely = vi.mocked((await import('$shared/connection')).sendSafely);
+
+      const { container } = render(Sidebar);
+
+      // Wait for component to fully load patterns and select the default pattern
+      await waitFor(
+        () => {
+          const select = container.querySelector('select') as HTMLSelectElement;
+          expect(select).toBeTruthy();
+          expect(select.value).toBe('summarize');
+        },
+        { timeout: 3000 }
+      );
+
+      // The Go button should be enabled
+      await waitFor(
+        () => {
+          const buttons = Array.from(container.querySelectorAll('button'));
+          const goButton = buttons.find((btn) => btn.textContent?.includes('Go'));
+          expect(goButton).toBeTruthy();
+          expect(goButton?.hasAttribute('disabled')).toBe(false);
+        },
+        { timeout: 3000 }
+      );
+
+      // Mock page capture response
+      mockSendSafely.mockResolvedValueOnce({
+        type: 'internal.pageContent',
+        content: 'Test page content',
+      });
+
+      // Mock processContent to return undefined to keep processing
+      mockSendSafely.mockResolvedValueOnce(undefined);
+
+      // Click Go to start processing
+      const buttons = Array.from(container.querySelectorAll('button'));
+      const goButton = buttons.find((btn) => btn.textContent?.includes('Go'));
+      await fireEvent.click(goButton!);
+
+      // Wait for Cancel button to appear
+      await waitFor(() => {
+        const buttonsAfter = Array.from(container.querySelectorAll('button'));
+        const cancelButton = buttonsAfter.find((btn) => btn.textContent?.includes('Cancel'));
+        expect(cancelButton).toBeTruthy();
+      });
+
+      // Mock cancel response
+      mockSendSafely.mockResolvedValueOnce({
+        type: 'internal.processingCancelled',
+        id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+      });
+
+      // Click the cancel button
+      const buttonsAfter = Array.from(container.querySelectorAll('button'));
+      const cancelButton = buttonsAfter.find((btn) => btn.textContent?.includes('Cancel'));
+      await fireEvent.click(cancelButton!);
+
+      // Should show cancellation message and reset state
+      await waitFor(() => {
+        expect(container.textContent).toContain('Process was cancelled');
+
+        // Cancel button should be gone, Go button should be back
+        const buttonsAfterCancel = Array.from(container.querySelectorAll('button'));
+        const cancelButtonAfter = buttonsAfterCancel.find((btn) =>
+          btn.textContent?.includes('Cancel')
+        );
+        expect(cancelButtonAfter).toBeFalsy();
+
+        const goButtonAfter = buttonsAfterCancel.find((btn) => btn.textContent?.includes('Go'));
+        expect(goButtonAfter).toBeTruthy();
+      });
+    });
+
+    it('should handle cancel failure', async () => {
+      const mockSendSafely = vi.mocked((await import('$shared/connection')).sendSafely);
+
+      const { container } = render(Sidebar);
+
+      // Wait for component to fully load patterns and select the default pattern
+      await waitFor(
+        () => {
+          const select = container.querySelector('select') as HTMLSelectElement;
+          expect(select).toBeTruthy();
+          expect(select.value).toBe('summarize');
+        },
+        { timeout: 3000 }
+      );
+
+      // The Go button should be enabled
+      await waitFor(
+        () => {
+          const buttons = Array.from(container.querySelectorAll('button'));
+          const goButton = buttons.find((btn) => btn.textContent?.includes('Go'));
+          expect(goButton).toBeTruthy();
+          expect(goButton?.hasAttribute('disabled')).toBe(false);
+        },
+        { timeout: 3000 }
+      );
+
+      // Mock page capture response
+      mockSendSafely.mockResolvedValueOnce({
+        type: 'internal.pageContent',
+        content: 'Test page content',
+      });
+
+      // Mock processContent to return undefined to keep processing
+      mockSendSafely.mockResolvedValueOnce(undefined);
+
+      // Click Go to start processing
+      const buttons = Array.from(container.querySelectorAll('button'));
+      const goButton = buttons.find((btn) => btn.textContent?.includes('Go'));
+      await fireEvent.click(goButton!);
+
+      // Wait for Cancel button to appear
+      await waitFor(() => {
+        const buttonsAfter = Array.from(container.querySelectorAll('button'));
+        const cancelButton = buttonsAfter.find((btn) => btn.textContent?.includes('Cancel'));
+        expect(cancelButton).toBeTruthy();
+      });
+
+      // Mock cancel error response
+      mockSendSafely.mockResolvedValueOnce({
+        type: 'internal.processingError',
+        message: 'Cancel failed',
+      });
+
+      // Click the cancel button
+      const buttonsAfter = Array.from(container.querySelectorAll('button'));
+      const cancelButton = buttonsAfter.find((btn) => btn.textContent?.includes('Cancel'));
+      await fireEvent.click(cancelButton!);
+
+      // Should show error message
+      await waitFor(() => {
+        expect(container.textContent).toContain('Failed to cancel: Cancel failed');
       });
     });
   });

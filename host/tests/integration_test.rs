@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     pin::Pin,
     sync::Arc,
     task::{Context, Poll},
@@ -9,11 +10,11 @@ use camino::Utf8PathBuf;
 use tapestry_host::{
     Request, RequestPayload, Response, ResponsePayload,
     handlers::{
-        FabricCommandRunner, handle_list_patterns, handle_ping, handle_process_content,
-        handle_request, resolve_path,
+        FabricCommandRunner, ProcessRegistry, handle_list_patterns, handle_ping,
+        handle_process_content, handle_request, resolve_path,
     },
 };
-use tokio::io::AsyncWrite;
+use tokio::{io::AsyncWrite, sync::Mutex};
 use tokio_util::codec::{Encoder, FramedWrite};
 use uuid::Uuid;
 
@@ -165,6 +166,7 @@ async fn test_real_command_runner_process_content() {
     let request_id = Uuid::new_v4();
     let content = "This is a test message to summarize.".to_string();
 
+    let process_registry = ProcessRegistry::default();
     let result = handle_process_content(
         &mut writer,
         request_id,
@@ -174,6 +176,7 @@ async fn test_real_command_runner_process_content() {
         None,
         Some("Say 'Hello World' and nothing else".to_string()),
         content,
+        process_registry,
     )
     .await;
 
@@ -301,7 +304,14 @@ async fn test_handle_request_with_real_runner() {
         payload: RequestPayload::Ping,
     };
 
-    let result = handle_request(&mut writer, request, |path| FabricCommandRunner::new(path)).await;
+    let process_registry: ProcessRegistry = Arc::new(Mutex::new(HashMap::new()));
+    let result = handle_request(
+        &mut writer,
+        request,
+        |path| FabricCommandRunner::new(path),
+        process_registry,
+    )
+    .await;
     assert!(result.is_ok());
 
     let messages = messages.lock().unwrap();
@@ -352,6 +362,7 @@ async fn test_process_content_with_pattern() {
     let request_id = Uuid::new_v4();
     let content = "This is test content for fabric processing.".to_string();
 
+    let process_registry: ProcessRegistry = Arc::new(Mutex::new(HashMap::new()));
     let result = handle_process_content(
         &mut writer2,
         request_id,
@@ -361,6 +372,7 @@ async fn test_process_content_with_pattern() {
         None,
         None,
         content,
+        process_registry,
     )
     .await;
 

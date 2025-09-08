@@ -177,7 +177,11 @@ function handleNativeMessage(message: NativeResponse, port: chrome.runtime.Port)
         message.content.length > 100 ? `${message.content.slice(0, 100)}...` : message.content;
       console.log('Content received:', truncatedContent);
       chrome.runtime
-        .sendMessage({ type: 'internal.processingContent', content: message.content })
+        .sendMessage({
+          type: 'internal.processingContent',
+          id: message.id,
+          content: message.content,
+        })
         .catch((error) => {
           if (error?.message?.includes('Receiving end does not exist')) {
             console.debug('No listeners for processing content');
@@ -190,7 +194,11 @@ function handleNativeMessage(message: NativeResponse, port: chrome.runtime.Port)
     case 'native.done': {
       console.log('Process done. exitCode:', message.exitCode ?? null);
       chrome.runtime
-        .sendMessage({ type: 'internal.processingDone', exitCode: message.exitCode ?? null })
+        .sendMessage({
+          type: 'internal.processingDone',
+          id: message.id,
+          exitCode: message.exitCode ?? null,
+        })
         .catch((error) => {
           if (error?.message?.includes('Receiving end does not exist')) {
             console.debug('No listeners for processing done');
@@ -203,8 +211,22 @@ function handleNativeMessage(message: NativeResponse, port: chrome.runtime.Port)
     }
     case 'native.error': {
       console.error('Native error:', message.message);
+      const respond = pendingRequests.get(message.id);
+      if (respond) {
+        respond({
+          type: 'internal.processingError',
+          id: message.id,
+          message: message.message,
+        });
+        pendingRequests.delete(message.id);
+      }
+
       chrome.runtime
-        .sendMessage({ type: 'internal.processingError', message: message.message })
+        .sendMessage({
+          type: 'internal.processingError',
+          id: message.id,
+          message: message.message,
+        })
         .catch((error) => {
           if (error?.message?.includes('Receiving end does not exist')) {
             console.debug('No listeners for processing error');
@@ -212,7 +234,25 @@ function handleNativeMessage(message: NativeResponse, port: chrome.runtime.Port)
             console.warn('Failed to send processing error:', error);
           }
         });
-      pendingRequests.delete(message.id);
+      break;
+    }
+    case 'native.cancelled': {
+      const respond = pendingRequests.get(message.id);
+      if (respond) {
+        respond({
+          type: 'internal.processingCancelled',
+          id: message.requestId,
+        });
+        pendingRequests.delete(message.id);
+      }
+      const originalRespond = pendingRequests.get(message.requestId);
+      if (originalRespond) {
+        originalRespond({
+          type: 'internal.processingCancelled',
+          id: message.requestId,
+        });
+      }
+      pendingRequests.delete(message.requestId);
       break;
     }
   }
@@ -377,10 +417,9 @@ async function handleMessage(
         context: fabricContext,
       } = await loadFabricSettings();
 
-      const id = generateRequestId();
       const result = NativeRequestSchema.safeParse({
         type: 'native.processContent',
-        id,
+        id: data.id,
         content: data.content,
         model: fabricModel,
         pattern: data.pattern,
@@ -400,9 +439,50 @@ async function handleMessage(
 
       try {
         nativeConnection.port.postMessage(result.data);
-        pendingRequests.set(id, sendResponse);
+        pendingRequests.set(data.id, sendResponse);
       } catch (error) {
         console.error('Failed to send processContent request:', error);
+        sendResponse({
+          type: 'internal.processingError',
+          message: 'Failed to send request to native host',
+        });
+        return;
+      }
+      break;
+    }
+    case 'internal.cancelProcess': {
+      if (nativeConnection.status !== 'connected') {
+        sendResponse({
+          type: 'internal.processingError',
+          message: 'Not connected to native host',
+        });
+        return;
+      }
+
+      const { path: fabricPath } = await loadFabricSettings();
+
+      const id = generateRequestId();
+      const result = NativeRequestSchema.safeParse({
+        type: 'native.cancelProcess',
+        id,
+        requestId: data.requestId,
+        path: fabricPath,
+      });
+
+      if (!result.success) {
+        console.warn('Failed to create cancelProcess request:', result.error);
+        sendResponse({
+          type: 'internal.processingError',
+          message: 'Invalid request configuration',
+        });
+        return;
+      }
+
+      try {
+        nativeConnection.port.postMessage(result.data);
+        pendingRequests.set(id, sendResponse);
+      } catch (error) {
+        console.error('Failed to send cancelProcess request:', error);
         sendResponse({
           type: 'internal.processingError',
           message: 'Failed to send request to native host',

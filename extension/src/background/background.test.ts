@@ -346,6 +346,8 @@ describe('Background Script Integration', () => {
       const onStartupListener = vi.mocked(chrome.runtime.onStartup.addListener).mock.calls[0]?.[0];
       await onStartupListener?.();
 
+      mockSendMessage.mockClear();
+
       const messageHandler = vi.mocked(mockPort.onMessage.addListener).mock.calls[0]?.[0];
       messageHandler?.(
         {
@@ -357,12 +359,20 @@ describe('Background Script Integration', () => {
         mockPort
       );
 
+      expect(mockSendMessage).toHaveBeenCalledWith({
+        type: 'internal.connectionStatus',
+        status: 'connected',
+      });
+
+      mockSendMessage.mockClear();
+
       const messageListener = vi.mocked(chrome.runtime.onMessage.addListener).mock.calls[0]?.[0];
       const sendResponse = vi.fn();
 
       const result = await messageListener?.(
         {
           type: 'internal.processContent',
+          id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
           content: 'test content',
           pattern: 'summarize',
           customPrompt: 'custom prompt',
@@ -387,6 +397,7 @@ describe('Background Script Integration', () => {
       await messageListener?.(
         {
           type: 'internal.processContent',
+          id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
           content: 'test content',
           pattern: 'summarize',
         },
@@ -461,6 +472,7 @@ describe('Background Script Integration', () => {
 
       expect(mockSendMessage).toHaveBeenCalledWith({
         type: 'internal.processingContent',
+        id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
         content: 'test content',
       });
     });
@@ -479,6 +491,7 @@ describe('Background Script Integration', () => {
 
       expect(mockSendMessage).toHaveBeenCalledWith({
         type: 'internal.processingDone',
+        id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
         exitCode: 0,
       });
     });
@@ -497,6 +510,7 @@ describe('Background Script Integration', () => {
 
       expect(mockSendMessage).toHaveBeenCalledWith({
         type: 'internal.processingError',
+        id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
         message: 'test error',
       });
     });
@@ -637,6 +651,7 @@ describe('Background Script Integration', () => {
       await messageListener?.(
         {
           type: 'internal.processContent',
+          id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
           content: 'test content',
           pattern: 'test_pattern',
         },
@@ -655,6 +670,112 @@ describe('Background Script Integration', () => {
       );
 
       consoleError.mockRestore();
+    });
+
+    it('should handle cancelProcess when connected', async () => {
+      await import('./background');
+
+      const onStartupListener = vi.mocked(chrome.runtime.onStartup.addListener).mock.calls[0]?.[0];
+      await onStartupListener?.();
+
+      const messageHandler = vi.mocked(mockPort.onMessage.addListener).mock.calls[0]?.[0];
+      messageHandler?.(
+        {
+          type: 'native.pong',
+          valid: true,
+          version: 'v1.0.0',
+          id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+        },
+        mockPort
+      );
+
+      const messageListener = vi.mocked(chrome.runtime.onMessage.addListener).mock.calls[0]?.[0];
+      const sendResponse = vi.fn();
+
+      const result = await messageListener?.(
+        {
+          type: 'internal.cancelProcess',
+          requestId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+        },
+        {},
+        sendResponse
+      );
+
+      expect(result).toBe(true);
+      expect(sendResponse).not.toHaveBeenCalled();
+      expect(mockPort.postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'native.cancelProcess',
+          requestId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+        })
+      );
+    });
+
+    it('should handle cancelProcess when not connected', async () => {
+      await import('./background');
+
+      const messageListener = vi.mocked(chrome.runtime.onMessage.addListener).mock.calls[0]?.[0];
+      const sendResponse = vi.fn();
+
+      await messageListener?.(
+        {
+          type: 'internal.cancelProcess',
+          requestId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+        },
+        {},
+        sendResponse
+      );
+
+      expect(sendResponse).toHaveBeenCalledWith({
+        type: 'internal.processingError',
+        message: 'Not connected to native host',
+      });
+    });
+
+    it('should handle native.cancelled response', async () => {
+      await import('./background');
+
+      const onStartupListener = vi.mocked(chrome.runtime.onStartup.addListener).mock.calls[0]?.[0];
+      await onStartupListener?.();
+
+      const messageHandler = vi.mocked(mockPort.onMessage.addListener).mock.calls[0]?.[0];
+      messageHandler?.(
+        {
+          type: 'native.pong',
+          valid: true,
+          version: 'v1.0.0',
+          id: 'a47ac10b-58cc-4372-a567-0e02b2c3d479',
+        },
+        mockPort
+      );
+
+      const messageListener = vi.mocked(chrome.runtime.onMessage.addListener).mock.calls[0]?.[0];
+      const sendResponse = vi.fn();
+
+      await messageListener?.(
+        {
+          type: 'internal.processContent',
+          id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+          content: 'test content',
+          pattern: 'test_pattern',
+        },
+        {},
+        sendResponse
+      );
+
+      messageHandler?.(
+        {
+          type: 'native.cancelled',
+          id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+          requestId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+        },
+        mockPort
+      );
+
+      expect(sendResponse).toHaveBeenCalledWith({
+        type: 'internal.processingCancelled',
+        id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+      });
     });
 
     it('should handle unknown message types', async () => {

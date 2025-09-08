@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Settings, FileText, Code, Code2 } from '@lucide/svelte';
+  import { Settings, FileText, Code, Code2, X } from '@lucide/svelte';
   import { onMount } from 'svelte';
 
   import MarkdownOutput from './components/MarkdownOutput.svelte';
@@ -9,6 +9,7 @@
   import { sendSafely } from '$shared/connection';
   import { RECOMMENDED_PATTERNS } from '$shared/constants';
   import { InternalRequestSchema } from '$shared/messages';
+  import { generateRequestId } from '$shared/requestId';
   import { loadSettings, saveSettings, watchSettings } from '$shared/settings';
 
   let selectedPattern = $state<string>('Custom');
@@ -16,6 +17,8 @@
   let output = $state<string>('');
   let outputError = $state<string>('');
   let processing = $state<boolean>(false);
+  let cancelling = $state<boolean>(false);
+  let currentRequestId = $state<string | null>(null);
   let patterns = $state<string[]>(['Custom']);
   let loadingPatterns = $state<boolean>(false);
   let showCustomPrompt = $state<boolean>(true);
@@ -71,13 +74,21 @@
     })();
 
     const handleMessage = (message: any) => {
+      if (message.id && message.id !== currentRequestId) {
+        return;
+      }
+
       if (message.type === 'internal.processingContent') {
         output += message.content;
       } else if (message.type === 'internal.processingDone') {
         processing = false;
+        cancelling = false;
+        currentRequestId = null;
       } else if (message.type === 'internal.processingError') {
         outputError = message.message;
         processing = false;
+        cancelling = false;
+        currentRequestId = null;
       }
     };
 
@@ -157,11 +168,46 @@
     }
   }
 
+  async function handleCancel(): Promise<void> {
+    if (!processing || !currentRequestId || cancelling) return;
+
+    const idToCancel = currentRequestId;
+    cancelling = true;
+
+    try {
+      const response = await sendSafely({
+        type: 'internal.cancelProcess',
+        requestId: idToCancel,
+      });
+
+      if (response?.type === 'internal.processingCancelled' && response.id === idToCancel) {
+        outputError = 'Process was cancelled';
+        processing = false;
+        currentRequestId = null;
+      } else if (response?.type === 'internal.processingError') {
+        if (response.message.includes('not found or already completed')) {
+          processing = false;
+          currentRequestId = null;
+        } else {
+          console.warn('Cancel request failed:', response.message);
+          outputError = `Failed to cancel: ${response.message}`;
+        }
+      }
+    } catch (error) {
+      console.error('Failed to cancel process:', error);
+      outputError = 'An error occurred while trying to cancel the process.';
+    } finally {
+      cancelling = false;
+    }
+  }
+
   async function handleGo(): Promise<void> {
     if (processing || (isCustomPattern && !customPrompt.trim())) return;
 
     try {
       processing = true;
+      cancelling = false;
+      currentRequestId = generateRequestId();
       output = '';
       outputError = '';
       localRenderAsMarkdown = renderAsMarkdown;
@@ -173,18 +219,21 @@
       if (!pageResponse) {
         outputError = 'Unable to communicate with extension background';
         processing = false;
+        cancelling = false;
         return;
       }
 
       if (pageResponse.type === 'internal.processingError') {
         outputError = pageResponse.message;
         processing = false;
+        cancelling = false;
         return;
       }
 
       if (pageResponse.type === 'internal.pageContent') {
         const processRequest = InternalRequestSchema.parse({
           type: 'internal.processContent',
+          id: currentRequestId!,
           content: pageResponse.content,
           pattern: isCustomPattern ? undefined : selectedPattern,
           customPrompt: isCustomPattern ? customPrompt : undefined,
@@ -195,6 +244,7 @@
     } catch (error) {
       outputError = error instanceof Error ? error.message : 'Failed to process content';
       processing = false;
+      cancelling = false;
     }
   }
 </script>
@@ -259,13 +309,25 @@
         </label>
       </div>
 
-      <button
-        onclick={handleGo}
-        disabled={processing || (isCustomPattern && !customPrompt.trim())}
-        class="btn btn-primary text-sm"
-      >
-        {processing ? 'Processing...' : 'Go'}
-      </button>
+      {#if processing}
+        <button
+          onclick={handleCancel}
+          disabled={cancelling}
+          class="btn btn-error text-sm"
+          class:loading={cancelling}
+        >
+          <X size={16} />
+          {cancelling ? 'Cancelling...' : 'Cancel'}
+        </button>
+      {:else}
+        <button
+          onclick={handleGo}
+          disabled={isCustomPattern && !customPrompt.trim()}
+          class="btn btn-primary text-sm"
+        >
+          Go
+        </button>
+      {/if}
     </div>
 
     {#if isCustomPattern && showCustomPrompt}

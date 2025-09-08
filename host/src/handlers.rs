@@ -1,4 +1,4 @@
-use std::{error, io, path::PathBuf, process::Stdio};
+use std::{collections::HashMap, error, io, path::PathBuf, process::Stdio, sync::Arc};
 
 use async_trait::async_trait;
 use camino::{Utf8Path, Utf8PathBuf};
@@ -7,11 +7,14 @@ use thiserror::Error;
 use tokio::{
     io::{AsyncBufReadExt, AsyncWrite, AsyncWriteExt, BufReader},
     process::{Child, ChildStdin, ChildStdout},
+    sync::{Mutex, watch},
 };
 use tokio_util::codec::{Encoder, FramedWrite};
 use uuid::Uuid;
 
 use crate::{Request, RequestPayload, Response, ResponsePayload, fabric::FabricCommandBuilder};
+
+pub type ProcessRegistry = Arc<Mutex<HashMap<Uuid, watch::Sender<bool>>>>;
 
 #[derive(Debug, Error)]
 pub enum HandlerError {
@@ -23,6 +26,8 @@ pub enum HandlerError {
     PathNotUtf8(PathBuf),
     #[error("Codec error: {0}")]
     Codec(#[from] crate::codec::CodecError),
+    #[error("Process was cancelled")]
+    Cancelled,
 }
 
 #[async_trait]
@@ -50,6 +55,7 @@ pub trait ProcessHandle: Send {
     async fn close_stdin(&mut self) -> Result<(), HandlerError>;
     async fn read_stdout_line(&mut self) -> Result<Option<String>, HandlerError>;
     async fn wait(self: Box<Self>) -> Result<Option<i32>, HandlerError>;
+    async fn kill(&mut self) -> Result<(), HandlerError>;
 }
 
 pub struct FabricCommandRunner {
@@ -178,12 +184,18 @@ impl ProcessHandle for RealProcessHandle {
         let status = self.child.wait().await?;
         Ok(status.code())
     }
+
+    async fn kill(&mut self) -> Result<(), HandlerError> {
+        self.child.kill().await?;
+        Ok(())
+    }
 }
 
 pub async fn handle_request<T, E, R, F>(
     writer: &mut FramedWrite<T, E>,
     request: Request,
     runner_factory: F,
+    process_registry: ProcessRegistry,
 ) -> Result<(), HandlerError>
 where
     T: AsyncWrite + Unpin,
@@ -208,7 +220,6 @@ where
                         },
                     })
                     .await?;
-                eprintln!("Failed to resolve fabric path: {e}");
                 return Ok(());
             }
             _ => return Err(e),
@@ -237,9 +248,13 @@ where
                 context,
                 custom_prompt,
                 content,
+                process_registry,
             )
             .await
         }
+        RequestPayload::CancelProcess {
+            request_id: target_request_id,
+        } => handle_cancel_process(writer, request_id, target_request_id, process_registry).await,
     }
 }
 
@@ -258,19 +273,19 @@ where
 {
     let fabric_path = runner.fabric_path().await?;
     match runner.fabric_version().await {
-        Ok(output) if output.status => {
+        Ok(_output) if _output.status => {
             writer
                 .send(Response {
                     id: request_id,
                     payload: ResponsePayload::Pong {
                         resolved_path: Some(fabric_path.to_string()),
-                        version: Some(output.stdout),
+                        version: Some(_output.stdout),
                         valid: true,
                     },
                 })
                 .await?;
         }
-        Ok(output) => {
+        Ok(_output) => {
             writer
                 .send(Response {
                     id: request_id,
@@ -281,9 +296,8 @@ where
                     },
                 })
                 .await?;
-            eprintln!("Fabric validation failed: {}", output.stderr);
         }
-        Err(e) => {
+        Err(_e) => {
             writer
                 .send(Response {
                     id: request_id,
@@ -294,7 +308,6 @@ where
                     },
                 })
                 .await?;
-            eprintln!("Failed to run fabric-ai: {e}");
         }
     }
 
@@ -394,6 +407,7 @@ async fn stream_process_responses<T, E>(
     request_id: Uuid,
     mut process: Box<dyn ProcessHandle>,
     content: String,
+    mut cancel_rx: watch::Receiver<bool>,
 ) -> Result<Option<i32>, HandlerError>
 where
     T: AsyncWrite + Unpin,
@@ -404,16 +418,91 @@ where
     process.write_stdin(content.as_bytes()).await?;
     process.close_stdin().await?;
 
-    while let Some(line) = process.read_stdout_line().await? {
-        writer
-            .send(Response {
-                id: request_id,
-                payload: ResponsePayload::Content { content: line },
-            })
-            .await?;
+    loop {
+        tokio::select! { biased;
+            _ = cancel_rx.changed() => {
+                if *cancel_rx.borrow() {
+                    let _ = process.kill().await;
+                    let _ = process.wait().await;
+                    return Err(HandlerError::Cancelled);
+                }
+            }
+            line_result = process.read_stdout_line() => {
+                match line_result {
+                    Ok(Some(line)) => {
+                        writer.send(Response {
+                            id: request_id,
+                            payload: ResponsePayload::Content { content: line },
+                        }).await?;
+                    }
+                    Ok(None) => {
+                        return process.wait().await;
+                    }
+                    Err(e) => {
+                        return Err(e);
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[doc(hidden)]
+pub async fn handle_cancel_process<T, E>(
+    writer: &mut FramedWrite<T, E>,
+    cancel_request_id: Uuid,
+    target_request_id: Uuid,
+    process_registry: ProcessRegistry,
+) -> Result<(), HandlerError>
+where
+    T: AsyncWrite + Unpin,
+    E: Encoder<Response>,
+    <E as Encoder<Response>>::Error: error::Error + Send + Sync + 'static,
+    HandlerError: From<<E as Encoder<Response>>::Error>,
+{
+    let cancel_sender = {
+        let registry = process_registry.lock().await;
+        registry.get(&target_request_id).cloned()
+    };
+
+    match cancel_sender {
+        Some(sender) => {
+            if sender.send(true).is_err() {
+                writer
+                    .send(Response {
+                        id: cancel_request_id,
+                        payload: ResponsePayload::Error {
+                            message: format!("Process {} already completed", target_request_id),
+                        },
+                    })
+                    .await?;
+            } else {
+                writer
+                    .send(Response {
+                        id: cancel_request_id,
+                        payload: ResponsePayload::Cancelled {
+                            request_id: target_request_id,
+                        },
+                    })
+                    .await?;
+            }
+        }
+        None => {
+            writer
+                .send(Response {
+                    id: cancel_request_id,
+                    payload: ResponsePayload::Error {
+                        message: format!(
+                            "Process {} not found or already completed",
+                            target_request_id
+                        ),
+                    },
+                })
+                .await?;
+        }
     }
 
-    process.wait().await
+    Ok(())
 }
 
 #[doc(hidden)]
@@ -427,6 +516,7 @@ pub async fn handle_process_content<T, E, R>(
     context: Option<String>,
     custom_prompt: Option<String>,
     content: String,
+    process_registry: ProcessRegistry,
 ) -> Result<(), HandlerError>
 where
     T: AsyncWrite + Unpin,
@@ -457,16 +547,43 @@ where
 
     let process = runner.spawn_process(builder).await?;
 
-    let exit_code = stream_process_responses(writer, request_id, process, content).await?;
+    let (cancel_tx, cancel_rx) = watch::channel(false);
 
-    writer
-        .send(Response {
-            id: request_id,
-            payload: ResponsePayload::Done { exit_code },
-        })
-        .await?;
+    {
+        let mut registry = process_registry.lock().await;
+        registry.insert(request_id, cancel_tx);
+    }
 
-    Ok(())
+    let result = stream_process_responses(writer, request_id, process, content, cancel_rx).await;
+
+    {
+        let mut registry = process_registry.lock().await;
+        registry.remove(&request_id);
+    }
+
+    match result {
+        Ok(exit_code) => {
+            writer
+                .send(Response {
+                    id: request_id,
+                    payload: ResponsePayload::Done { exit_code },
+                })
+                .await?;
+            Ok(())
+        }
+        Err(HandlerError::Cancelled) => Ok(()),
+        Err(e) => {
+            writer
+                .send(Response {
+                    id: request_id,
+                    payload: ResponsePayload::Error {
+                        message: e.to_string(),
+                    },
+                })
+                .await?;
+            Err(e)
+        }
+    }
 }
 
 #[doc(hidden)]
@@ -477,19 +594,9 @@ where
     if let Some(path) = path {
         let path_buf = path.as_ref().to_owned();
 
-        if cfg!(debug_assertions) {
-            eprintln!("[resolve_path] Checking provided path: {path_buf}");
-        }
-
         if path_buf.exists() {
-            if cfg!(debug_assertions) {
-                eprintln!("[resolve_path] Path exists: {path_buf}");
-            }
             Ok(path_buf)
         } else {
-            if cfg!(debug_assertions) {
-                eprintln!("[resolve_path] Path does not exist, falling back to PATH search");
-            }
             which::which("fabric-ai")
                 .map_err(HandlerError::from)
                 .and_then(|path| {
@@ -497,9 +604,6 @@ where
                 })
         }
     } else {
-        if cfg!(debug_assertions) {
-            eprintln!("[resolve_path] No path provided, searching PATH for fabric-ai");
-        }
         which::which("fabric-ai")
             .map_err(HandlerError::from)
             .and_then(|path| Utf8PathBuf::from_path_buf(path).map_err(HandlerError::PathNotUtf8))
@@ -677,6 +781,10 @@ mod tests {
                 )));
             }
             Ok(self.exit_code)
+        }
+
+        async fn kill(&mut self) -> Result<(), HandlerError> {
+            Ok(())
         }
     }
 
@@ -914,6 +1022,7 @@ mod tests {
         let custom_prompt = None;
         let content = "Test content to process".to_string();
 
+        let process_registry: ProcessRegistry = Arc::new(TokioMutex::new(HashMap::new()));
         let result = handle_process_content(
             &mut writer,
             request_id,
@@ -923,6 +1032,7 @@ mod tests {
             None,
             custom_prompt,
             content,
+            process_registry,
         )
         .await;
         assert!(result.is_ok());
@@ -986,6 +1096,7 @@ mod tests {
         let request_id = Uuid::new_v4();
         let content = "Test content".to_string();
 
+        let process_registry: ProcessRegistry = Arc::new(TokioMutex::new(HashMap::new()));
         let result = handle_process_content(
             &mut writer,
             request_id,
@@ -995,6 +1106,7 @@ mod tests {
             None,
             Some("custom prompt".to_string()),
             content,
+            process_registry,
         )
         .await;
 
@@ -1141,6 +1253,7 @@ mod tests {
         let custom_prompt = None;
         let content = "Test content to process with context".to_string();
 
+        let process_registry: ProcessRegistry = Arc::new(TokioMutex::new(HashMap::new()));
         let result = handle_process_content(
             &mut writer,
             request_id,
@@ -1150,6 +1263,7 @@ mod tests {
             context,
             custom_prompt,
             content,
+            process_registry,
         )
         .await;
         assert!(result.is_ok());
